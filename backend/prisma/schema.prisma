@@ -12,3 +12,226 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+//////////////////// ENUMS ////////////////////
+
+enum QuestionType {
+  MCQ
+  INTERVIEW
+}
+
+enum SkillType {
+  TECHNICAL
+  SOFTSKILL
+}
+
+enum QuestionCategory {
+  MUST_ASK
+  OPTIONAL
+  EXTRA
+}
+
+enum SessionStatus {
+  STARTED
+  MCQ_COMPLETED
+  INTERVIEW_COMPLETED
+  COMPLETED
+  TERMINATED
+}
+
+//////////////////// CORE ENTITIES ////////////////////
+
+model Recruiter {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  organization String
+  createdAt    DateTime @default(now())
+
+  jobs Job[]
+}
+
+model Job {
+  id          Int      @id @default(autoincrement())
+  recruiterId Int
+  title       String
+  description String
+  experience  Int
+  jobType     String
+  createdAt   DateTime @default(now())
+
+  recruiter Recruiter        @relation(fields: [recruiterId], references: [id])
+  links     AssessmentLink[]
+  questionPool JobQuestionPool[]
+  sessions  AssessmentSession[]
+}
+
+model AssessmentLink {
+  id        Int      @id @default(autoincrement())
+  jobId     Int
+  token     String   @unique
+  expiresAt DateTime
+  isActive  Boolean  @default(true)
+
+  job Job @relation(fields: [jobId], references: [id])
+}
+
+model Candidate {
+  id              Int      @id @default(autoincrement())
+  name            String
+  email           String
+  education       String?
+  experienceYears Int?
+  createdAt       DateTime @default(now())
+
+  sessions AssessmentSession[]
+}
+
+//////////////////// SESSION ////////////////////
+
+model AssessmentSession {
+  id          Int           @id @default(autoincrement())
+  candidateId Int
+  jobId       Int
+  startedAt   DateTime      @default(now())
+  completedAt DateTime?
+  status      SessionStatus
+
+  candidate Candidate @relation(fields: [candidateId], references: [id])
+  job       Job       @relation(fields: [jobId], references: [id])
+
+  sessionQuestions SessionQuestion[]
+  mcqAttempt       MCQAttempt?
+  interview        Interview?
+  cheatingLogs     CheatingLog[]
+  report           Report?
+}
+
+//////////////////// QUESTION BANK ////////////////////
+
+model QuestionBank {
+  id          Int              @id @default(autoincrement())
+  role        String
+  experience  Int
+  questionType QuestionType
+  skillType   SkillType
+  skillName   String
+  category    QuestionCategory
+  difficulty  String
+  text        String
+  options     Json?
+  correctAns  String?
+  source      String
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  lastUsedAt  DateTime?
+
+  jobPools        JobQuestionPool[]
+  sessionQuestions SessionQuestion[]
+  mcqAnswers      MCQAnswer[]
+  interviewAnswers InterviewAnswer[]
+}
+
+model JobQuestionPool {
+  id         Int @id @default(autoincrement())
+  jobId      Int
+  questionId Int
+  isMandatory Boolean
+  weight     Int?
+
+  job      Job          @relation(fields: [jobId], references: [id])
+  question QuestionBank @relation(fields: [questionId], references: [id])
+
+  @@unique([jobId, questionId])
+}
+
+model SessionQuestion {
+  id         Int @id @default(autoincrement())
+  sessionId  Int
+  questionId Int
+  orderIndex Int
+
+  session  AssessmentSession @relation(fields: [sessionId], references: [id])
+  question QuestionBank      @relation(fields: [questionId], references: [id])
+
+  @@unique([sessionId, questionId])
+}
+
+//////////////////// MCQ ////////////////////
+
+model MCQAttempt {
+  id        Int @id @default(autoincrement())
+  sessionId Int @unique
+  score     Float
+  status    String
+
+  session AssessmentSession @relation(fields: [sessionId], references: [id])
+  answers MCQAnswer[]
+}
+
+model MCQAnswer {
+  id           Int @id @default(autoincrement())
+  attemptId    Int
+  questionId   Int
+  selectedOpt  String
+  isCorrect    Boolean
+
+  attempt  MCQAttempt   @relation(fields: [attemptId], references: [id])
+  question QuestionBank @relation(fields: [questionId], references: [id])
+}
+
+//////////////////// INTERVIEW ////////////////////
+
+model Interview {
+  id               Int @id @default(autoincrement())
+  sessionId        Int @unique
+  transcript       String
+  videoUrl         String
+
+  technicalScore    Float
+  communication     Float
+  teamwork          Float
+  leadership        Float
+  logicalThinking   Float
+
+  session AssessmentSession @relation(fields: [sessionId], references: [id])
+  answers InterviewAnswer[]
+}
+
+model InterviewAnswer {
+  id          Int @id @default(autoincrement())
+  interviewId Int
+  questionId  Int
+  answerText  String
+  aiScore     Float
+
+  interview Interview     @relation(fields: [interviewId], references: [id])
+  question  QuestionBank  @relation(fields: [questionId], references: [id])
+}
+
+//////////////////// CHEATING ////////////////////
+
+model CheatingLog {
+  id         Int @id @default(autoincrement())
+  sessionId  Int
+  eventType  String
+  severity   String
+  metadata   Json
+  detectedAt DateTime @default(now())
+
+  session AssessmentSession @relation(fields: [sessionId], references: [id])
+}
+
+//////////////////// REPORT ////////////////////
+
+model Report {
+  id             Int @id @default(autoincrement())
+  sessionId      Int @unique
+  totalScore     Float
+  summary        String
+  recommendation String
+  createdAt      DateTime @default(now())
+
+  session AssessmentSession @relation(fields: [sessionId], references: [id])
+}
