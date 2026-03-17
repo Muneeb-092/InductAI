@@ -137,3 +137,28 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+/generated/prisma
+# =========================
+# Python & Machine Learning
+# =========================
+
+# Virtual Environments
+venv/
+env/
+.env_python/
+.venv/
+
+# PyTorch / YOLO Models
+*.pt
+*.pth
+yolov8n.pt
+
+# Python Cache (Compiled bytecode)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/

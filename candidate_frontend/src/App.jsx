@@ -7,62 +7,62 @@ import { AIInterviewPage } from "./components/AIInterviewPage";
 import { Toaster } from "./components/ui/sonner";
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState("landing");
+  const [currentPage, setCurrentPage] = useState("landing"); 
 
-  const handleProceedToTest = () => {
-    setCurrentPage("instructions");
-  };
+  const handleProceedToTest = () => {
+    setCurrentPage("instructions");
+  };
 
-  const handleGoBack = () => {
-    setCurrentPage("landing");
-  };
+  const handleGoBack = () => {
+    setCurrentPage("landing");
+  };
 
-  const handleStartTest = () => {
-    setCurrentPage("test");
-  };
+  const handleStartTest = () => {
+    setCurrentPage("test");
+  };
 
-  const handleSubmitTest = () => {
-    setCurrentPage("interview-instructions");
-  };
+  const handleSubmitTest = () => {
+    setCurrentPage("interview-instructions");
+  };
 
-  const handleStartInterview = () => {
-    setCurrentPage("interview");
-  };
+  const handleStartInterview = () => {
+    setCurrentPage("interview");
+  };
 
-  const handleCompleteInterview = () => {
-    setCurrentPage("landing");
-  };
+  const handleCompleteInterview = () => {
+    setCurrentPage("landing");
+  };
 
-  return (
-    <>
-      <Toaster position="top-center" />
+  return (
+    <>
+      <Toaster position="top-center" />
 
-      {currentPage === "landing" && (
-        <CandidateLandingPage
-          onProceedToTest={handleProceedToTest}
-        />
-      )}
+      {currentPage === "landing" && (
+        <CandidateLandingPage
+          onProceedToTest={handleProceedToTest}
+        />
+      )}
 
-      {currentPage === "instructions" && (
-        <TestInstructionsPage
-          onGoBack={handleGoBack}
-          onStartTest={handleStartTest}
-        />
-      )}
+      {currentPage === "instructions" && (
+        <TestInstructionsPage
+          onGoBack={handleGoBack}
+          onStartTest={handleStartTest}
+        />
+      )}
 
-      {currentPage === "test" && (
-        <MCQTestPage onSubmitTest={handleSubmitTest} />
-      )}
+      {currentPage === "test" && (
+        <MCQTestPage onSubmitTest={handleSubmitTest} />
+      )}
 
-      {currentPage === "interview-instructions" && (
-        <AIInterviewInstructionsPage
-          onStartInterview={handleStartInterview}
-        />
-      )}
+      {currentPage === "interview-instructions" && (
+        <AIInterviewInstructionsPage
+          onStartInterview={handleStartInterview}
+        />
+      )}
 
-      {currentPage === "interview" && (
-        <AIInterviewPage onCompleteInterview={handleCompleteInterview} />
-      )}
-    </>
-  );
+      {currentPage === "interview" && (
+        <AIInterviewPage onCompleteInterview={handleCompleteInterview} />
+      )}
+    </>
+  );
 }
