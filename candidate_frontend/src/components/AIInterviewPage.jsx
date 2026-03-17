@@ -29,8 +29,55 @@ export function AIInterviewPage({ onCompleteInterview }) {
   const [aiText, setAiText] = useState("");
   const [interviewTimer, setInterviewTimer] = useState(0);
   const [warnings, setWarnings] = useState([]);
+  const [transcript, setTranscript] = useState("");
+  const [answers, setAnswers] = useState([]);
+  const [isListening, setIsListening] = useState(false);
+  const [saving, setSaving] = useState(false);
 
+  //speech to text
+  useEffect(() => {
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
 
+  if (!SpeechRecognition) {
+    console.error("Speech Recognition not supported");
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = "en-US";
+
+  recognition.onresult = (event) => {
+    let finalTranscript = "";
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const text = event.results[i][0].transcript;
+
+      if (event.results[i].isFinal) {
+        finalTranscript += text;
+      }
+    }
+
+    if (finalTranscript) {
+      setTranscript((prev) => prev + " " + finalTranscript);
+    }
+  };
+
+  recognition.onstart = () => {
+    setIsListening(true);
+  };
+
+  recognition.onend = () => {
+    setIsListening(false);
+  };
+
+  window.recognition = recognition;
+  }, []);
+
+  // text to speech
  const speak = (text) => {
   const voices = window.speechSynthesis.getVoices();
 
@@ -82,8 +129,8 @@ export function AIInterviewPage({ onCompleteInterview }) {
       );
 
       const data = await res.json();
-
-      setInterviewQuestions(data.data.map(q => q.text));
+/////////////////////////////////////////
+      setInterviewQuestions(data.data);
 
     } catch (err) {
       console.error(err);
@@ -102,8 +149,9 @@ export function AIInterviewPage({ onCompleteInterview }) {
 
   const askQuestion = () => {
     setIsAISpeaking(true);
-
-    const question = interviewQuestions[currentQuestionIndex];
+/////////////////////////////////////////////////////////
+    const questionObj = interviewQuestions[currentQuestionIndex];
+    const question = questionObj?.text;
     if (!question) return;
     speak(question);  // Use Web Speech API to speak the question
     let charIndex = 0;
@@ -116,6 +164,13 @@ export function AIInterviewPage({ onCompleteInterview }) {
         clearInterval(typingInterval);
         setTimeout(() => {
           setIsAISpeaking(false);
+
+          setTranscript("");
+
+          if (window.recognition) {
+            window.recognition.start();
+          }
+
         }, 2000);
       }
     }, 50);
@@ -150,20 +205,61 @@ export function AIInterviewPage({ onCompleteInterview }) {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [interviewTimer]);
 
-  const handleNextQuestion = () => {
+  // const handleNextQuestion = () => {
+  //   if (currentQuestionIndex < interviewQuestions.length - 1) {
+  //     setCurrentQuestionIndex(currentQuestionIndex + 1);
+  //     setAiText("");
+  //   } else {
+  //     toast.success("Interview completed! Thank you for your time.");
+  //     if (onCompleteInterview) {
+  //       setTimeout(() => {
+  //         onCompleteInterview();
+  //       }, 2000);
+  //     }
+  //   }
+  // };
+
+  const handleNextQuestion = async () => {
+  if (window.recognition) {
+    window.recognition.stop();
+  }
+
+  const currentQuestion = interviewQuestions[currentQuestionIndex];
+  const sessionId = 1; // or dynamic sessionId
+  try {
+    const response = await fetch("http://localhost:5000/api/interview/answer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        questionId: currentQuestion.id,
+        answerText: transcript,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      toast.error("Failed to save answer");
+      return;
+    }
+
+    setAnswers((prev) => [...prev, data.data]);
+    console.log("Saved Answer:", data.data);
+
     if (currentQuestionIndex < interviewQuestions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setAiText("");
+      setTranscript("");
     } else {
-      toast.success("Interview completed! Thank you for your time.");
-      if (onCompleteInterview) {
-        setTimeout(() => {
-          onCompleteInterview();
-        }, 2000);
-      }
+      toast.success("Interview completed!");
+      if (onCompleteInterview) setTimeout(onCompleteInterview, 2000);
     }
-  };
-
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to save answer");
+  }
+};
   return (
     <div className="min-h-screen bg-[#F5F7FA]">
       {/* Top Status Bar */}
@@ -320,6 +416,12 @@ export function AIInterviewPage({ onCompleteInterview }) {
                 </div>
               </div>
             </Card>
+            {/* ////////////////////////////////////////////////////////// */}
+            <div className="mt-4 bg-white p-4 rounded border">
+              <p className="text-sm text-gray-500 mb-1">Your Answer (live):</p>
+              <p className="text-gray-900">{transcript || "Start speaking..."}</p>
+            </div>
+            {/* ////////////////////////////////////////////////////////// */}
 
             {/* Interview Controls */}
             <Card className="bg-white border-gray-200 p-4 shadow-lg">
@@ -356,12 +458,18 @@ export function AIInterviewPage({ onCompleteInterview }) {
                   </div>
                 </div>
 
-                <Button
+                {/* <Button
                   onClick={handleNextQuestion}
                   disabled={isAISpeaking}
                   className="bg-gradient-to-r from-purple-600 to-cyan-400 hover:from-purple-700 hover:to-cyan-500 disabled:opacity-50 shadow-md"
                 >
                   {currentQuestionIndex === interviewQuestions.length - 1 ? "Complete Interview" : "Next Question"}
+                </Button> */}
+                <Button
+                  onClick={handleNextQuestion}
+                  disabled={isAISpeaking || saving}
+                >
+                  {saving ? "Saving..." : (currentQuestionIndex === interviewQuestions.length - 1 ? "Complete Interview" : "Next Question")}
                 </Button>
               </div>
             </Card>

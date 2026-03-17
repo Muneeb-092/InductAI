@@ -1,4 +1,35 @@
 const aiService = require("../services/ai_get_ques_service");
+const interviewService = require("../services/ai_get_ques_service");
+
+/////////////////////////////////////////////////////
+const saveAnswer = async (req, res) => {
+  try {
+
+    const { sessionId, questionId, answerText } = req.body;
+
+    const result = await interviewService.saveInterviewAnswer(
+      sessionId,
+      questionId,
+      answerText
+    );
+
+    res.status(201).json({
+      success: true,
+      data: result
+    });
+
+  } catch (error) {
+    console.error("FULL ERROR:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+//////////////////////////////////////////////////////
+
+
 
 const fetchInterviewQuestions = async (req, res) => {
   try {
@@ -25,5 +56,6 @@ const fetchInterviewQuestions = async (req, res) => {
 };
 
 module.exports = {
-  fetchInterviewQuestions
+  fetchInterviewQuestions,
+  saveAnswer
 };
