@@ -19,24 +19,32 @@ import {
 import { toast } from "sonner@2.0.3";
 
 // Mock interview questions
-const interviewQuestions = [
-  "Tell me about yourself and your professional background.",
-  "What motivated you to apply for this position?",
-  "Describe a challenging technical problem you've solved recently.",
-  "How do you handle tight deadlines and pressure?",
-  "Where do you see yourself in five years?",
-  "Tell me about a time you worked in a team to achieve a goal.",
-  "What are your greatest strengths and weaknesses?",
-  "Why should we hire you for this role?",
-];
+
 
 export function AIInterviewPage({ onCompleteInterview }) {
+
+  const [interviewQuestions, setInterviewQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
   const [aiText, setAiText] = useState("");
   const [interviewTimer, setInterviewTimer] = useState(0);
   const [warnings, setWarnings] = useState([]);
-  
+
+
+ const speak = (text) => {
+  const voices = window.speechSynthesis.getVoices();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+
+  // choose a better voice
+  utterance.voice = voices.find(v => v.name.includes("Google")) || voices[2];
+
+  utterance.rate = 0.95;
+  utterance.pitch = 1;
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+};
   // Monitoring status
   const [monitoringStatus, setMonitoringStatus] = useState({
     camera: true,
@@ -61,32 +69,65 @@ export function AIInterviewPage({ onCompleteInterview }) {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  useEffect(() => {
+
+  const fetchQuestions = async () => {
+
+    try {
+
+      const sessionId = 1;
+
+      const res = await fetch(
+        `http://localhost:5000/api/interview/${sessionId}/questions`
+      );
+
+      const data = await res.json();
+
+      setInterviewQuestions(data.data.map(q => q.text));
+
+    } catch (err) {
+      console.error(err);
+    }
+
+  };
+
+  fetchQuestions();
+
+}, []);
+
   // Simulate AI asking question
   useEffect(() => {
-    const askQuestion = () => {
-      setIsAISpeaking(true);
-      const question = interviewQuestions[currentQuestionIndex];
-      
-      // Typing effect
-      let charIndex = 0;
-      const typingInterval = setInterval(() => {
-        if (charIndex <= question.length) {
-          setAiText(question.slice(0, charIndex));
-          charIndex++;
-        } else {
-          clearInterval(typingInterval);
-          setTimeout(() => {
-            setIsAISpeaking(false);
-          }, 2000);
-        }
-      }, 50);
 
-      return () => clearInterval(typingInterval);
-    };
+  if (interviewQuestions.length === 0) return;
 
-    const timeout = setTimeout(askQuestion, 1000);
-    return () => clearTimeout(timeout);
-  }, [currentQuestionIndex]);
+  const askQuestion = () => {
+    setIsAISpeaking(true);
+
+    const question = interviewQuestions[currentQuestionIndex];
+    if (!question) return;
+    speak(question);  // Use Web Speech API to speak the question
+    let charIndex = 0;
+
+    const typingInterval = setInterval(() => {
+      if (charIndex <= question.length) {
+        setAiText(question.slice(0, charIndex));
+        charIndex++;
+      } else {
+        clearInterval(typingInterval);
+        setTimeout(() => {
+          setIsAISpeaking(false);
+        }, 2000);
+      }
+    }, 50);
+
+    return () => clearInterval(typingInterval);
+  };
+
+  const timeout = setTimeout(askQuestion, 1000);
+
+  return () => clearTimeout(timeout);
+
+}, [currentQuestionIndex, interviewQuestions]);
 
   // Tab switching detection
   useEffect(() => {

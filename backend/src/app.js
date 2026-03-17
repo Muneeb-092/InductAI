@@ -1,15 +1,21 @@
-const express = require('express');
-const cors = require('cors');
+const express = require("express");
+const cors = require("cors");
+
+const interviewRoutes = require("./routes/ai_get_inter_ques_route");
 
 const app = express();
 
-// Middleware
+// Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Routes
+app.use("/api/interview", interviewRoutes);
 
 // Test route
-app.get('/', (req, res) => {
-  res.send('InductAI API is running');
+app.get("/", (req, res) => {
+  res.send("AI Interview Backend Running");
 });
 
 module.exports = app;
