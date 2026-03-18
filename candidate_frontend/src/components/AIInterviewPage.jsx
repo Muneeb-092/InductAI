@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 
 export function AIInterviewPage({ onCompleteInterview }) {
+  const [sessionId, setSessionId] = useState(null); // NEW: Holds our dynamic ID
   const [interviewQuestions, setInterviewQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
@@ -56,7 +57,7 @@ export function AIInterviewPage({ onCompleteInterview }) {
   };
 
   // Initialize the frame-sampling hook
-  useProctoringStream(videoRef, monitoringStatus.camera, handleProctoringResult);
+ useProctoringStream(videoRef, monitoringStatus.camera, sessionId, handleProctoringResult);
 
   const speak = (text) => {
     const voices = window.speechSynthesis.getVoices();
@@ -112,6 +113,44 @@ export function AIInterviewPage({ onCompleteInterview }) {
     };
   }, []); 
 
+  // Add this right below your other useEffects
+  useEffect(() => {
+    const startNewSession = async () => {
+      try {
+        // In your final app, you will get these variables from your Login Context 
+        // or from the URL parameters (e.g., /interview?jobId=4).
+        // For right now, you define them here in the frontend.
+        const currentCandidateId = 1; 
+        const currentJobId = 4;
+
+        const res = await fetch("http://localhost:5000/api/start-session", { 
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json" // Tell Node we are sending JSON
+          },
+          body: JSON.stringify({
+            candidateId: currentCandidateId,
+            jobId: currentJobId
+          })
+        });
+
+        const data = await res.json();
+        
+        if (data.sessionId) {
+          setSessionId(data.sessionId);
+          console.log(`🚀 Started new dynamic session: #${data.sessionId}`);
+        } else {
+          console.error("Failed to start session:", data.error);
+        }
+
+      } catch (err) {
+        console.error("Error starting session:", err);
+      }
+    };
+    
+    startNewSession();
+  }, []);
+
   // Interview timer
   useEffect(() => {
     const interval = setInterval(() => {
@@ -128,9 +167,11 @@ export function AIInterviewPage({ onCompleteInterview }) {
   };
 
   useEffect(() => {
+    // NEW: Don't fetch questions until Node gives us our dynamic Session ID
+    if (!sessionId) return; 
+
     const fetchQuestions = async () => {
       try {
-        const sessionId = 1;
         const res = await fetch(
           `http://localhost:5000/api/interview/${sessionId}/questions`
         );
@@ -141,7 +182,7 @@ export function AIInterviewPage({ onCompleteInterview }) {
       }
     };
     fetchQuestions();
-  }, []);
+  }, [sessionId]); // Add sessionId as a dependency
 
   // Simulate AI asking question
   useEffect(() => {

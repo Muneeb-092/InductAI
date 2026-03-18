@@ -73,3 +73,37 @@ exports.analyzeFrame = async (req, res) => {
     res.status(500).json({ error: "Failed to process frame" });
   }
 };
+
+// ==========================================
+// NEW: Generate a dynamic session ID
+// ==========================================
+// ==========================================
+// NEW: Generate a dynamic session ID
+// ==========================================
+exports.startSession = async (req, res) => {
+  try {
+    // 1. Grab the dynamic IDs sent by the React frontend
+    const { candidateId, jobId } = req.body;
+
+    // 2. Add a quick safety check
+    if (!candidateId || !jobId) {
+      return res.status(400).json({ error: "Missing candidateId or jobId" });
+    }
+
+    // 3. Create the session using the variables from React
+    const newSession = await prisma.assessmentSession.create({
+      data: {
+        candidateId: parseInt(candidateId), 
+        jobId: parseInt(jobId),             
+        status: "STARTED"    
+      } 
+    });
+
+    console.log(`🎉 [Database] New Interview Session Created: ID #${newSession.id} for Candidate #${candidateId}`);
+    
+    res.status(200).json({ sessionId: newSession.id });
+  } catch (error) {
+    console.error("❌ [Node] Error creating session:", error.message);
+    res.status(500).json({ error: "Failed to create new interview session" });
+  }
+};
