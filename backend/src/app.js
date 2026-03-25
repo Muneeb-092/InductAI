@@ -1,28 +1,28 @@
 const express = require("express");
 const cors = require("cors");
-
+const skillRoutes = require("./routes/skillRoutes");
 const interviewRoutes = require("./routes/ai_get_inter_ques_route");
 const proctoringRoutes = require('./routes/proctoring_route');
+const jobRoutes = require('./routes/jobRoutes');
 
 const app = express();
 
-// Middlewares
+// 1. Middlewares
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Routes
+// 2. Specific Routes First
+app.use("/api/jobs", jobRoutes);
+app.use("/api/skills", skillRoutes);
 app.use("/api/interview", interviewRoutes);
+
+// 3. General API Routes Last
 app.use('/api', proctoringRoutes);
 
-// Test route
+// 4. Test route
 app.get("/", (req, res) => {
   res.send("AI Interview Backend Running");
 });
-
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
-
-
 
 module.exports = app;

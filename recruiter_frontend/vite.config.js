@@ -5,6 +5,7 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   resolve: {
+    
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'], // you can keep .ts/.tsx if you still import some TS files
     alias: {
       'vaul@1.1.2': 'vaul',
@@ -53,7 +54,10 @@ export default defineConfig({
     outDir: 'build',
   },
   server: {
-    port: 3000,
-    open: true,
+    proxy: {
+      '/api': 'http://localhost:5000', // backend URL
+    },
+  
   },
+
 });

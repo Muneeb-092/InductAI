@@ -6,12 +6,11 @@
 
 generator client {
   provider = "prisma-client-js"
- // output   = "../src/generated/prisma"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-
 }
 
 //////////////////// ENUMS ////////////////////
@@ -53,30 +52,81 @@ model Recruiter {
   jobs Job[]
 }
 
-model Job {
+model Skill {
   id          Int      @id @default(autoincrement())
-  recruiterId Int
-  title       String
-  description String
-  experience  Int
-  jobType     String
-  createdAt   DateTime @default(now())
+  name        String   @unique
 
-  recruiter Recruiter        @relation(fields: [recruiterId], references: [id])
-  links     AssessmentLink[]
+  // Relations
+  jobSkills     JobSkill[]
+  questionBank  QuestionBank[]
+}
+
+model Job {
+  id           Int      @id @default(autoincrement())
+  recruiterId  Int
+  title        String
+  description  String
+  experience   Int
+  jobType      String
+  
+  // Preference Fields
+  gender       String?  @default("any")
+  minAge       Int?
+  maxAge       Int?
+  
+  createdAt    DateTime @default(now())
+
+  recruiter    Recruiter         @relation(fields: [recruiterId], references: [id])
+  skills       JobSkill[]
+  links        AssessmentLink[]
   questionPool JobQuestionPool[]
-  sessions  AssessmentSession[]
+  sessions     AssessmentSession[]
 }
 
-model AssessmentLink {
-  id        Int      @id @default(autoincrement())
-  jobId     Int
-  token     String   @unique
-  expiresAt DateTime
-  isActive  Boolean  @default(true)
+model JobSkill {
+  id          Int    @id @default(autoincrement())
+  jobId       Int
+  skillId     Int    // Formal relation to Skill model
+  importance  String // core, secondary, optional
 
-  job Job @relation(fields: [jobId], references: [id])
+  job   Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id])
+
+  @@index([jobId])
+  @@index([skillId])
 }
+
+//////////////////// QUESTION BANK ////////////////////
+
+model QuestionBank {
+  id           Int              @id @default(autoincrement())
+  role         String
+  experience   Int
+  questionType QuestionType
+  skillType    SkillType
+  skillName    String           // Kept for quick display
+  skillId      Int?             // Formal relation to Skill model
+  category     QuestionCategory
+  difficulty   String
+  text         String
+  options      Json?
+  correctAns   String?
+  source       String           // e.g., "SYSTEM" or "GEMINI"
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  lastUsedAt   DateTime?
+
+  // Relations
+  skill            Skill?            @relation(fields: [skillId], references: [id])
+  jobPools         JobQuestionPool[]
+  sessionQuestions SessionQuestion[]
+  mcqAnswers       MCQAnswer[]
+  interviewAnswers InterviewAnswer[]
+
+  @@index([skillId])
+}
+
+//////////////////// ASSESSMENT & SESSIONS ////////////////////
 
 model Candidate {
   id              Int      @id @default(autoincrement())
@@ -88,8 +138,6 @@ model Candidate {
 
   sessions AssessmentSession[]
 }
-
-//////////////////// SESSION ////////////////////
 
 model AssessmentSession {
   id          Int           @id @default(autoincrement())
@@ -109,37 +157,12 @@ model AssessmentSession {
   report           Report?
 }
 
-//////////////////// QUESTION BANK ////////////////////
-
-model QuestionBank {
-  id          Int              @id @default(autoincrement())
-  role        String
-  experience  Int
-  questionType QuestionType
-  skillType   SkillType
-  skillName   String
-  category    QuestionCategory
-  difficulty  String
-  text        String
-  options     Json?
-  correctAns  String?
-  source      String
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  lastUsedAt  DateTime?
-
-  jobPools        JobQuestionPool[]
-  sessionQuestions SessionQuestion[]
-  mcqAnswers      MCQAnswer[]
-  interviewAnswers InterviewAnswer[]
-}
-
 model JobQuestionPool {
-  id         Int @id @default(autoincrement())
-  jobId      Int
-  questionId Int
+  id          Int @id @default(autoincrement())
+  jobId       Int
+  questionId  Int
   isMandatory Boolean
-  weight     Int?
+  weight      Int?
 
   job      Job          @relation(fields: [jobId], references: [id])
   question QuestionBank @relation(fields: [questionId], references: [id])
@@ -159,7 +182,7 @@ model SessionQuestion {
   @@unique([sessionId, questionId])
 }
 
-//////////////////// MCQ ////////////////////
+//////////////////// MCQ & INTERVIEW ////////////////////
 
 model MCQAttempt {
   id        Int @id @default(autoincrement())
@@ -172,17 +195,15 @@ model MCQAttempt {
 }
 
 model MCQAnswer {
-  id           Int @id @default(autoincrement())
-  attemptId    Int
-  questionId   Int
-  selectedOpt  String
-  isCorrect    Boolean
+  id          Int @id @default(autoincrement())
+  attemptId   Int
+  questionId  Int
+  selectedOpt String
+  isCorrect   Boolean
 
   attempt  MCQAttempt   @relation(fields: [attemptId], references: [id])
   question QuestionBank @relation(fields: [questionId], references: [id])
 }
-
-//////////////////// INTERVIEW ////////////////////
 
 model Interview {
   id               Int @id @default(autoincrement())
@@ -190,11 +211,11 @@ model Interview {
   transcript       String
   videoUrl         String
 
-  technicalScore    Float
-  communication     Float
-  teamwork          Float
-  leadership        Float
-  logicalThinking   Float
+  technicalScore   Float
+  communication    Float
+  teamwork         Float
+  leadership       Float
+  logicalThinking  Float
 
   session AssessmentSession @relation(fields: [sessionId], references: [id])
   answers InterviewAnswer[]
@@ -207,10 +228,11 @@ model InterviewAnswer {
   answerText  String
   aiScore     Float
 
-  interview Interview     @relation(fields: [interviewId], references: [id])
-  question  QuestionBank  @relation(fields: [questionId], references: [id])
+  interview Interview    @relation(fields: [interviewId], references: [id])
+  question  QuestionBank @relation(fields: [questionId], references: [id])
 }
 
+<<<<<<< HEAD
 //////////////////// CHEATING ////////////////////
 
 model ProctoringReport {
@@ -230,6 +252,18 @@ model ProctoringReport {
   session AssessmentSession @relation(fields: [sessionId], references: [id])
 }
 //////////////////// REPORT ////////////////////
+=======
+model CheatingLog {
+  id         Int @id @default(autoincrement())
+  sessionId  Int
+  eventType  String
+  severity   String
+  metadata   Json
+  detectedAt DateTime @default(now())
+
+  session AssessmentSession @relation(fields: [sessionId], references: [id])
+}
+>>>>>>> e8b1e35 (create job and skills impemented)
 
 model Report {
   id             Int @id @default(autoincrement())
