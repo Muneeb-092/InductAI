@@ -78,7 +78,6 @@ model Job {
 
   recruiter    Recruiter         @relation(fields: [recruiterId], references: [id])
   skills       JobSkill[]
-  links        AssessmentLink[]
   questionPool JobQuestionPool[]
   sessions     AssessmentSession[]
 }
@@ -232,7 +231,6 @@ model InterviewAnswer {
   question  QuestionBank @relation(fields: [questionId], references: [id])
 }
 
-<<<<<<< HEAD
 //////////////////// CHEATING ////////////////////
 
 model ProctoringReport {
@@ -252,18 +250,6 @@ model ProctoringReport {
   session AssessmentSession @relation(fields: [sessionId], references: [id])
 }
 //////////////////// REPORT ////////////////////
-=======
-model CheatingLog {
-  id         Int @id @default(autoincrement())
-  sessionId  Int
-  eventType  String
-  severity   String
-  metadata   Json
-  detectedAt DateTime @default(now())
-
-  session AssessmentSession @relation(fields: [sessionId], references: [id])
-}
->>>>>>> e8b1e35 (create job and skills impemented)
 
 model Report {
   id             Int @id @default(autoincrement())
