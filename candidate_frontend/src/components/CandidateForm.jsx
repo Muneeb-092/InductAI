@@ -7,9 +7,11 @@ import { Textarea } from "./ui/textarea";
 import { Checkbox } from "./ui/checkbox";
 import { Button } from "./ui/button";
 import { User, Mail, Phone, GraduationCap, Briefcase, Upload, Shield } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner"; // Removed @2.0.3 to match standard imports
 
+// NEW: Added isSubmitting state and updated props to pass back the real ID
 export function CandidateForm({ onProceedToTest }) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -28,58 +30,65 @@ export function CandidateForm({ onProceedToTest }) {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = "Full name is required";
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Invalid email format";
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required";
-    }
-
-    if (!formData.gender) {
-      newErrors.gender = "Gender is required";
-    }
-
-    if (!formData.age) {
-      newErrors.age = "Age is required";
-    }
-
-    if (!formData.qualification.trim()) {
-      newErrors.qualification = "Qualification is required";
-    }
-
-    if (!formData.experience.trim()) {
-      newErrors.experience = "Experience is required";
-    }
-
-    if (!formData.skills.trim()) {
-      newErrors.skills = "Skills are required";
-    }
-
-    if (!formData.agreedToTerms) {
-      newErrors.agreedToTerms = "You must agree to the terms and conditions";
-    }
+    if (!formData.fullName.trim()) newErrors.fullName = "Full name is required";
+    if (!formData.email.trim()) newErrors.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Invalid email format";
+    if (!formData.phone.trim()) newErrors.phone = "Phone number is required";
+    if (!formData.gender) newErrors.gender = "Gender is required";
+    if (!formData.age) newErrors.age = "Age is required";
+    if (!formData.qualification.trim()) newErrors.qualification = "Qualification is required";
+    if (!formData.experience.trim()) newErrors.experience = "Experience is required";
+    if (!formData.skills.trim()) newErrors.skills = "Skills are required";
+    if (!formData.agreedToTerms) newErrors.agreedToTerms = "You must agree to the terms and conditions";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  // --- NEW: The API Submission Logic ---
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (validateForm()) {
-      toast.success("Profile created successfully! Redirecting to test instructions...");
-      console.log("Form submitted:", formData);
-      // Navigate to test instructions page
-      setTimeout(() => {
-        onProceedToTest();
-      }, 1500);
+      setIsSubmitting(true);
+      
+      try {
+        // 1. Send candidate info to backend to create Candidate AND start Session
+        const response = await fetch("http://localhost:5000/api/register-candidate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fullName: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            gender: formData.gender,
+            age: parseInt(formData.age),
+            qualification: formData.qualification,
+            experience: formData.experience,
+            skills: formData.skills,
+            jobId: 4 // Hardcoded for now, assuming they are applying for Job #4. Change if needed!
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.sessionId) {
+          toast.success("Profile created successfully! Redirecting...");
+          
+          // 2. Pass the real, newly created Session ID up to the parent component
+          setTimeout(() => {
+            onProceedToTest(data.sessionId); 
+          }, 1500);
+        } else {
+          toast.error(data.error || "Failed to start session.");
+          setIsSubmitting(false);
+        }
+
+      } catch (err) {
+        console.error("Submission error:", err);
+        toast.error("Network error. Please try again.");
+        setIsSubmitting(false);
+      }
     } else {
       toast.error("Please fill in all required fields correctly");
     }
@@ -313,11 +322,12 @@ export function CandidateForm({ onProceedToTest }) {
 
           <Button
             type="submit"
+            disabled={isSubmitting}
             className="w-full bg-gradient-to-r from-purple-600 to-cyan-400 hover:from-purple-700 hover:to-cyan-500 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
             size="lg"
           >
-            Proceed to Test
-            <Shield className="w-5 h-5" />
+            {isSubmitting ? "Creating Profile..." : "Proceed to Test"}
+            {!isSubmitting && <Shield className="w-5 h-5" />}
           </Button>
 
           <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">

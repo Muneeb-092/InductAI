@@ -19,9 +19,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-export function AIInterviewPage({ onCompleteInterview }) {
+export function AIInterviewPage({ sessionId, onCompleteInterview }) {
   // --- STATE MANAGEMENT ---
-  const [sessionId, setSessionId] = useState(null); 
   const [interviewQuestions, setInterviewQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
@@ -33,6 +32,11 @@ export function AIInterviewPage({ onCompleteInterview }) {
   const [answers, setAnswers] = useState([]);
   const [isListening, setIsListening] = useState(false);
   const [saving, setSaving] = useState(false);
+  // --- PROCTORING AGGREGATION STATE ---
+  const [infractionTimeline, setInfractionTimeline] = useState([]);
+  const [lookingAwayCount, setLookingAwayCount] = useState(0);
+  const [phoneFlagged, setPhoneFlagged] = useState(false);
+  const [multiplePeopleFlagged, setMultiplePeopleFlagged] = useState(false);
 
   // Proctoring Refs & State
   const videoRef = useRef(null);
@@ -92,19 +96,54 @@ export function AIInterviewPage({ onCompleteInterview }) {
   };
 
   // --- PROCTORING HANDLER ---
-  const handleProctoringResult = (result) => {
-    setMonitoringStatus(prev => ({
-      ...prev,
-      faceDetected: result.faceDetected,
-      singlePerson: result.singlePerson,
-      eyeTracking: !result.isLookingAway 
-    }));
+ // --- PROCTORING HANDLER ---
+ const handleProctoringResult = (result) => {
+  // 1. Update the visual UI monitoring indicators
+  setMonitoringStatus(prev => ({
+    ...prev,
+    faceDetected: result.faceDetected,
+    singlePerson: result.singlePerson,
+    eyeTracking: !result.isLookingAway 
+  }));
 
-    if (result.warning) {
-      setWarnings(prev => [...prev, `[${formatTime(interviewTimer)}] ${result.warning}`]);
-      toast.error(`⚠️ ${result.warning}`);
+  // 2. If Python flagged a warning, log it in our State!
+  if (result.warning) {
+    let currentEventType = "SUSPICIOUS_BEHAVIOR";
+    let currentSeverity = "LOW";
+
+    // Classify the warning
+    if (result.warning.includes("phone") || (result.objectsDetected && result.objectsDetected.includes("cell phone"))) {
+      currentEventType = "PHONE_DETECTED";
+      currentSeverity = "CRITICAL";
+      setPhoneFlagged(true); // Flip the boolean for the database
+    } else if (!result.singlePerson && result.faceDetected) {
+      currentEventType = "MULTIPLE_PEOPLE";
+      currentSeverity = "HIGH";
+      setMultiplePeopleFlagged(true); // Flip the boolean for the database
+    } else if (!result.faceDetected) {
+      currentEventType = "NO_FACE_DETECTED";
+      currentSeverity = "MEDIUM";
+    } else if (result.isLookingAway) {
+      currentEventType = "LOOKING_AWAY";
+      currentSeverity = "LOW";
+      setLookingAwayCount(prev => prev + 1); // Increment the counter
     }
-  };
+
+    // Add the specific event to our timeline array
+    const newInfraction = {
+      time: formatTime(interviewTimer),
+      type: currentEventType,
+      severity: currentSeverity,
+      details: result.warning
+    };
+
+    setInfractionTimeline(prev => [...prev, newInfraction]);
+    
+    // Keep the visual toast array updated for the sidebar
+    setWarnings(prev => [...prev, `[${formatTime(interviewTimer)}] ${result.warning}`]);
+    toast.error(`⚠️ ${result.warning}`);
+  }
+};
 
   // Initialize the frame-sampling hook
   useProctoringStream(videoRef, monitoringStatus.camera, sessionId, handleProctoringResult);
@@ -150,38 +189,6 @@ export function AIInterviewPage({ onCompleteInterview }) {
       }
     };
   }, []); 
-
-  // --- START NEW DYNAMIC SESSION ---
-  useEffect(() => {
-    const startNewSession = async () => {
-      try {
-        const currentCandidateId = 1; 
-        const currentJobId = 4;
-
-        const res = await fetch("http://localhost:5000/api/start-session", { 
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            candidateId: currentCandidateId,
-            jobId: currentJobId
-          })
-        });
-
-        const data = await res.json();
-        
-        if (data.sessionId) {
-          setSessionId(data.sessionId);
-          console.log(`🚀 Started new dynamic session: #${data.sessionId}`);
-        } else {
-          console.error("Failed to start session:", data.error);
-        }
-      } catch (err) {
-        console.error("Error starting session:", err);
-      }
-    };
-    
-    startNewSession();
-  }, []);
 
   // --- INTERVIEW TIMER ---
   useEffect(() => {
@@ -273,6 +280,25 @@ export function AIInterviewPage({ onCompleteInterview }) {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [interviewTimer]);
 
+  // --- SUBMIT FINAL PROCTORING REPORT ---
+  const submitProctoringReport = async () => {
+    try {
+      await fetch("http://localhost:5000/api/save-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: sessionId,
+          lookingAwayCount: lookingAwayCount,
+          multiplePeopleDetected: multiplePeopleFlagged,
+          phoneDetected: phoneFlagged,
+          infractionTimeline: infractionTimeline
+        })
+      });
+      console.log("✅ Final proctoring report submitted securely.");
+    } catch (err) {
+      console.error("Failed to submit proctoring report:", err);
+    }
+  };
   // --- HANDLE NEXT QUESTION (SAVE ANSWER) ---
   
   const handleNextQuestion = async () => {
@@ -308,6 +334,7 @@ export function AIInterviewPage({ onCompleteInterview }) {
         setTranscript("");
       } else {
         toast.success("Interview completed!");
+        await submitProctoringReport();
         if (onCompleteInterview) setTimeout(onCompleteInterview, 2000);
       }
     } catch (err) {

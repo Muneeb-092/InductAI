@@ -21,6 +21,10 @@ face_mesh = mp_face_mesh.FaceMesh(
     min_detection_confidence=0.5
 )
 
+# --- NEW: Session-based Frame Counter Dictionary ---
+# This safely keeps track of consecutive frames for specific sessions
+session_look_away_counters = {}
+
 class FramePayload(BaseModel):
     image: str
     timestamp: int
@@ -34,6 +38,10 @@ def decode_image(base64_string):
 @app.post("/analyze")
 async def analyze_frame(payload: FramePayload):
     try:
+        # Initialize the counter for this specific session if it's new
+        if payload.sessionId not in session_look_away_counters:
+            session_look_away_counters[payload.sessionId] = 0
+
         frame = decode_image(payload.image)
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         
@@ -48,7 +56,7 @@ async def analyze_frame(payload: FramePayload):
 
         # --- 3. MediaPipe Eye Tracking (Full 4-Way Tracking) ---
         face_results = face_mesh.process(rgb_frame)
-        is_looking_away = False
+        math_looking_away = False # Renamed this to represent the raw math calculation
         
         if face_results.multi_face_landmarks:
             mesh_coords = face_results.multi_face_landmarks[0].landmark
@@ -92,21 +100,27 @@ async def analyze_frame(payload: FramePayload):
             right_y_ratio = (right_iris_y - r_eye_topmost) / (r_eye_height + 1e-6)
 
             # --- DEBUG PRINT ---
-            # X goes from ~0.0 (Left) to ~1.0 (Right)
-            # Y goes from ~0.0 (Up) to ~1.0 (Down)
             print(f"👁️ X(L/R): {left_x_ratio:.2f}/{right_x_ratio:.2f} | Y(L/R): {left_y_ratio:.2f}/{right_y_ratio:.2f}")
 
-            # --- THE TRIGGERS ---
-            # Horizontal bounds: < 0.35 (Looking Out) or > 0.65 (Looking In)
-            # Vertical bounds: < 0.35 (Looking Up) or > 0.65 (Looking Down)
-            
-            if (left_x_ratio < 0.35 or left_x_ratio > 0.65) or \
-               (right_x_ratio < 0.35 or right_x_ratio > 0.65) or \
-               (left_y_ratio < 0.30 or left_y_ratio > 0.70) or \
-               (right_y_ratio < 0.30 or right_y_ratio > 0.70):
-                is_looking_away = True
+            if (left_x_ratio < 0.25 or left_x_ratio > 0.75) or \
+               (right_x_ratio < 0.25 or right_x_ratio > 0.75) or \
+               (left_y_ratio < 0.20 or left_y_ratio > 0.80) or \
+               (right_y_ratio < 0.20 or right_y_ratio > 0.80):
+                math_looking_away = True
+            else:
+                math_looking_away = False 
         else:
-            is_looking_away = True
+            # Trigger if no eyes are detected
+            math_looking_away = True
+
+        # --- NEW: APPLY THE FRAME BUFFER LOGIC ---
+        if math_looking_away:
+            session_look_away_counters[payload.sessionId] += 1
+        else:
+            session_look_away_counters[payload.sessionId] = 0 # Reset if they look back at the screen!
+
+        # Only officially trigger the warning if they've looked away for 15+ consecutive frames
+        is_looking_away_confirmed = session_look_away_counters[payload.sessionId] > 15
 
         # --- 4. Final Logic & Warnings ---
         warning = None
@@ -114,7 +128,7 @@ async def analyze_frame(payload: FramePayload):
             warning = "Mobile phone detected!"
         elif person_count > 1:
             warning = "Multiple people detected!"
-        elif is_looking_away and person_count > 0:
+        elif is_looking_away_confirmed and person_count > 0:
             warning = "Please look at the screen."
         elif person_count == 0:
             warning = "Face not detected!"
@@ -122,7 +136,7 @@ async def analyze_frame(payload: FramePayload):
         return {
             "faceDetected": person_count > 0,
             "singlePerson": person_count == 1,
-            "isLookingAway": is_looking_away,
+            "isLookingAway": is_looking_away_confirmed,
             "objectsDetected": [model.names[int(b.cls[0])] for b in results.boxes],
             "warning": warning
         }

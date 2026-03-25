@@ -105,7 +105,7 @@ model AssessmentSession {
   sessionQuestions SessionQuestion[]
   mcqAttempt       MCQAttempt?
   interview        Interview?
-  cheatingLogs     CheatingLog[]
+  proctoringReport ProctoringReport?
   report           Report?
 }
 
@@ -213,17 +213,22 @@ model InterviewAnswer {
 
 //////////////////// CHEATING ////////////////////
 
-model CheatingLog {
-  id         Int @id @default(autoincrement())
-  sessionId  Int
-  eventType  String
-  severity   String
-  metadata   Json
-  detectedAt DateTime @default(now())
+model ProctoringReport {
+  id                     Int      @id @default(autoincrement())
+  sessionId              Int      @unique // @unique enforces the 1-to-1 relationship
+  
+  // Aggregated Metrics
+  lookingAwayCount       Int      @default(0)
+  multiplePeopleDetected Boolean  @default(false)
+  phoneDetected          Boolean  @default(false)
+  
+  // Detailed JSON array of specific timestamps/warnings gathered at the end
+  infractionTimeline     Json?    
+  
+  createdAt              DateTime @default(now())
 
   session AssessmentSession @relation(fields: [sessionId], references: [id])
 }
-
 //////////////////// REPORT ////////////////////
 
 model Report {

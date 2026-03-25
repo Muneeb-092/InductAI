@@ -17,7 +17,7 @@ export function CandidateLandingPage({ onProceedToTest }) {
           {/* Left Column - Job Info and Form */}
           <div className="space-y-6">
             <JobOverviewCard />
-            <CandidateForm onProceedToTest={onProceedToTest} />
+            <CandidateForm onProceedToTest={(id) => onProceedToTest(id)} />
           </div>
           
           {/* Right Column - Illustration */}
