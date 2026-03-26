@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Header } from './Header';
 import { StatCard } from './StatCard';
 import { CandidateTable } from './CandidateTable';
@@ -23,6 +24,30 @@ const jobApplicationsData = [
 ];
 
 export function Dashboard() {
+  const [totalJobs, setTotalJobs] = useState("...");
+  const [activeJobs, setActiveJobs] = useState("...");
+  useEffect(() => {
+    const fetchJobStats = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/jobs/count', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('recruiterToken')}` }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // 2. Update both state variables with the new data
+          setTotalJobs(data.total.toString());
+          setActiveJobs(data.active.toString()); // <--- NEW
+        }
+      } catch (error) {
+        console.error("Failed to fetch job stats:", error);
+        setTotalJobs("Error");
+        setActiveJobs("Error");
+      }
+    };
+  
+    fetchJobStats();
+  }, []);
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
@@ -35,10 +60,8 @@ export function Dashboard() {
           <div className="grid grid-cols-4 gap-6">
             <StatCard
               title="Active Jobs"
-              value="47"
+              value={activeJobs}
               icon={Briefcase}
-              trend="12% vs last month"
-              trendUp={true}
             />
             <StatCard
               title="Reports Generated"
@@ -49,10 +72,8 @@ export function Dashboard() {
             />
             <StatCard
               title="Total Jobs Posted"
-              value="1,284"
+              value={totalJobs} 
               icon={Users}
-              trend="8% vs last month"
-              trendUp={true}
             />
             <StatCard
               title="Total Interviews"
