@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -68,7 +67,7 @@ model Job {
   description  String
   experience   Int
   jobType      String
-  
+  status      String   @default("ACTIVE")
   // Preference Fields
   gender       String?  @default("any")
   minAge       Int?
