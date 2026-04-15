@@ -26,6 +26,9 @@ const jobApplicationsData = [
 export function Dashboard() {
   const [totalJobs, setTotalJobs] = useState("...");
   const [activeJobs, setActiveJobs] = useState("...");
+  const [reportsGenerated, setReportsGenerated] = useState("...");
+  const [totalInterviews, setTotalInterviews] = useState("...");
+
   useEffect(() => {
     const fetchJobStats = async () => {
       try {
@@ -37,7 +40,9 @@ export function Dashboard() {
           const data = await response.json();
           // 2. Update both state variables with the new data
           setTotalJobs(data.total.toString());
-          setActiveJobs(data.active.toString()); // <--- NEW
+          setActiveJobs(data.active.toString()); 
+          setReportsGenerated(data.reports.toString());
+          setTotalInterviews(data.interviews.toString());
         }
       } catch (error) {
         console.error("Failed to fetch job stats:", error);
@@ -48,6 +53,7 @@ export function Dashboard() {
   
     fetchJobStats();
   }, []);
+  
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
@@ -65,10 +71,8 @@ export function Dashboard() {
             />
             <StatCard
               title="Reports Generated"
-              value="392"
+              value={reportsGenerated}
               icon={FileCheck}
-              trend="5% vs last month"
-              trendUp={false}
             />
             <StatCard
               title="Total Jobs Posted"
@@ -77,10 +81,8 @@ export function Dashboard() {
             />
             <StatCard
               title="Total Interviews"
-              value="156"
+              value={totalInterviews}
               icon={Calendar}
-              trend="18% vs last month"
-              trendUp={true}
             />
           </div>
 

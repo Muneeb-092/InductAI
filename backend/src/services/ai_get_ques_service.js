@@ -39,7 +39,6 @@ const saveInterviewAnswer = async (sessionId, questionId, answerText) => {
 };
 // =========================================================
 const getInterviewQuestions = async (sessionId) => {
-
   const questions = await prisma.sessionQuestion.findMany({
     where: {
       sessionId: parseInt(sessionId)
@@ -51,6 +50,11 @@ const getInterviewQuestions = async (sessionId) => {
       question: true
     }
   });
+
+  // 🛡️ NEW: Don't fail silently! Throw an error if it's empty.
+  if (!questions || questions.length === 0) {
+    throw new Error(`No session questions found for sessionId: ${sessionId}`);
+  }
 
   return questions.map((q) => ({
     id: q.question.id,

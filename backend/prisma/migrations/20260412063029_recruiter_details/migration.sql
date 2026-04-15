@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Job" ADD COLUMN     "jobLink" TEXT,
+ADD COLUMN     "status" TEXT NOT NULL DEFAULT 'ACTIVE';

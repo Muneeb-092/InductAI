@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Progress } from "./ui/progress";
@@ -27,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 
-export function MCQTestPage({ onSubmitTest }) {
+export function MCQTestPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [markedForReview, setMarkedForReview] = useState(new Set());
@@ -37,7 +38,8 @@ export function MCQTestPage({ onSubmitTest }) {
     microphone: true,
     aiDetection: true,
   });
-
+  const { sessionId } = useParams(); 
+  const navigate = useNavigate();
   const currentQuestion = mockQuestions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === mockQuestions.length - 1;
   const progress = ((currentQuestionIndex + 1) / mockQuestions.length) * 100;
@@ -104,8 +106,12 @@ export function MCQTestPage({ onSubmitTest }) {
   };
 
   const confirmSubmit = () => {
+    // 1. (Optional) Make an API call here to save their final answers to the database!
+    
     toast.success("Test submitted successfully!");
-    onSubmitTest();
+    
+    // 2. REPLACED: Navigate to the interview instructions with their session ID
+    navigate(`/interview-instructions/${sessionId}`); 
   };
 
   const handleTimeUp = () => {

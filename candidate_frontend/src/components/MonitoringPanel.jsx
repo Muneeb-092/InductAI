@@ -1,5 +1,6 @@
 import { Camera, Mic, Brain, CheckCircle2, Shield } from "lucide-react";
 import { Card } from "./ui/card";
+import { useParams, useNavigate } from 'react-router-dom';
 
 export function MonitoringPanel({ status }) {
   return (
