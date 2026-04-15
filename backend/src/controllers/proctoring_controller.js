@@ -79,16 +79,16 @@ exports.registerAndStartSession = async (req, res) => {
     });
 
     // 3. Attach Questions to this session
-    const availableQuestions = await prisma.questionBank.findMany({ take: 4 });
-    const sessionQuestionsData = availableQuestions.map((q, index) => ({
-      sessionId: newSession.id,
-      questionId: q.id,
-      orderIndex: index
-    }));
+    // const availableQuestions = await prisma.questionBank.findMany({ take: 4 });
+    // const sessionQuestionsData = availableQuestions.map((q, index) => ({
+    //   sessionId: newSession.id,
+    //   questionId: q.id,
+    //   orderIndex: index
+    // }));
 
-    await prisma.sessionQuestion.createMany({
-      data: sessionQuestionsData
-    });
+    // await prisma.sessionQuestion.createMany({
+    //   data: sessionQuestionsData
+    // });
 
     console.log(`🎉 [Database] Candidate registered and Session #${newSession.id} created!`);
     

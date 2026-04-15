@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -21,14 +20,8 @@ enum QuestionType {
 }
 
 enum SkillType {
-  TECHNICAL
-  SOFTSKILL
-}
-
-enum QuestionCategory {
-  MUST_ASK
-  OPTIONAL
-  EXTRA
+  CORE
+  SECONDARY
 }
 
 enum SessionStatus {
@@ -38,6 +31,19 @@ enum SessionStatus {
   COMPLETED
   TERMINATED
 }
+
+enum QuestionDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum Experience_levels {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
 
 //////////////////// CORE ENTITIES ////////////////////
 
@@ -86,7 +92,7 @@ model JobSkill {
   id          Int    @id @default(autoincrement())
   jobId       Int
   skillId     Int    // Formal relation to Skill model
-  importance  String // core, secondary, optional
+  importance  SkillType // core, secondary, optional
 
   job   Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
   skill Skill @relation(fields: [skillId], references: [id])
@@ -99,18 +105,15 @@ model JobSkill {
 
 model QuestionBank {
   id           Int              @id @default(autoincrement())
-  role         String
-  experience   Int
   questionType QuestionType
   skillType    SkillType
   skillName    String           // Kept for quick display
   skillId      Int?             // Formal relation to Skill model
-  category     QuestionCategory
-  difficulty   String
+  difficulty   QuestionDifficulty?
+  experience_level Experience_levels?
   text         String
   options      Json?
   correctAns   String?
-  source       String           // e.g., "SYSTEM" or "GEMINI"
   isActive     Boolean          @default(true)
   createdAt    DateTime         @default(now())
   lastUsedAt   DateTime?

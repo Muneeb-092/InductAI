@@ -185,6 +185,16 @@ const [maxAge, setMaxAge] = useState("");
 
     setShowSuccess(true);
 
+      fetch("/api/questions/verify-bank", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ 
+      skills, 
+      // Change userExperience to experience (your state variable)
+      experience: Number(experience) 
+    })
+  }).catch(err => console.error("Background question check failed", err));
+    
     // Optional reset
     setJobTitle("");
     setDescription("");
@@ -411,7 +421,6 @@ const [maxAge, setMaxAge] = useState("");
                                 <SelectContent>
                                   <SelectItem value="core">Core</SelectItem>
                                   <SelectItem value="secondary">Secondary</SelectItem>
-                                  <SelectItem value="optional">Optional</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>

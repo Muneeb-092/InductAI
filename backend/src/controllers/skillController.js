@@ -1,4 +1,3 @@
-// skillController.js
 const skillService = require("../services/skillServices");
 
 exports.searchSkills = async (req, res) => {

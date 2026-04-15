@@ -12,6 +12,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google/genai": "^1.46.0",
+    "@google/generative-ai": "^0.24.1",
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",
     "axios": "^1.13.6",

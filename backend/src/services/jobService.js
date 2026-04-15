@@ -32,7 +32,7 @@ exports.createJob = async (jobData) => {
     const skillData = skills.map((s) => ({
       jobId: job.id,
       skillId: s.id,          // <-- Important: must be `id` from frontend
-      importance: s.importance || "core",
+      importance: (s.importance || "CORE").toUpperCase(),
     }));
 
     await prisma.jobSkill.createMany({
