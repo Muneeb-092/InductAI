@@ -2,6 +2,7 @@ import { MapPin, Briefcase, Users, Calendar, ChevronDown, ChevronUp } from "luci
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { useState } from "react";
+import { useParams, useNavigate } from 'react-router-dom';
 
 export function JobOverviewCard() {
   const [expanded, setExpanded] = useState(false);

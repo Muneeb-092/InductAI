@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useParams, useNavigate } from 'react-router-dom';
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { ProgressIndicator } from "./ProgressIndicator";
@@ -28,10 +29,12 @@ import {
 import { toast } from "sonner@2.0.3";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
-export function TestInstructionsPage({ onGoBack, onStartTest }) {
+export function TestInstructionsPage() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [systemCheckOpen, setSystemCheckOpen] = useState(false);
   const [countdown, setCountdown] = useState(null);
+  const { sessionId } = useParams(); 
+  const navigate = useNavigate();
 
   const handleStartTest = () => {
     if (!agreedToTerms) {
@@ -46,7 +49,7 @@ export function TestInstructionsPage({ onGoBack, onStartTest }) {
         if (prev === null || prev <= 1) {
           clearInterval(interval);
           toast.success("Starting test now...");
-          onStartTest();
+          navigate(`/test/${sessionId}`);
           return null;
         }
         return prev - 1;
@@ -56,7 +59,7 @@ export function TestInstructionsPage({ onGoBack, onStartTest }) {
 
   const handleGoBack = () => {
     toast.info("Returning to candidate information...");
-    onGoBack();
+    navigate(-1);
   };
 
   return (

@@ -1,3 +1,4 @@
+import { useParams, useNavigate } from "react-router-dom";
 import { useProctoringStream } from "../hooks/useProctoringStream";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -19,8 +20,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-export function AIInterviewPage({ sessionId, onCompleteInterview }) {
+export function AIInterviewPage({ onCompleteInterview }) {
   // --- STATE MANAGEMENT ---
+  const { sessionId } = useParams();
   const [interviewQuestions, setInterviewQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
@@ -32,14 +34,18 @@ export function AIInterviewPage({ sessionId, onCompleteInterview }) {
   const [answers, setAnswers] = useState([]);
   const [isListening, setIsListening] = useState(false);
   const [saving, setSaving] = useState(false);
+  
   // --- PROCTORING AGGREGATION STATE ---
   const [infractionTimeline, setInfractionTimeline] = useState([]);
   const [lookingAwayCount, setLookingAwayCount] = useState(0);
   const [phoneFlagged, setPhoneFlagged] = useState(false);
   const [multiplePeopleFlagged, setMultiplePeopleFlagged] = useState(false);
 
-  // Proctoring Refs & State
+  // --- REFS ---
   const videoRef = useRef(null);
+  const wasLookingAwayRef = useRef(false); // Keeps the app from spamming 30 toasts per second
+  const wasFaceMissingRef = useRef(false);
+
   const [monitoringStatus, setMonitoringStatus] = useState({
     camera: false, 
     mic: false,
@@ -96,54 +102,53 @@ export function AIInterviewPage({ sessionId, onCompleteInterview }) {
   };
 
   // --- PROCTORING HANDLER ---
- // --- PROCTORING HANDLER ---
- const handleProctoringResult = (result) => {
-  // 1. Update the visual UI monitoring indicators
-  setMonitoringStatus(prev => ({
-    ...prev,
-    faceDetected: result.faceDetected,
-    singlePerson: result.singlePerson,
-    eyeTracking: !result.isLookingAway 
-  }));
+  // --- PROCTORING HANDLER ---
+  const handleProctoringResult = (result) => {
+    // 1. Update the visual UI monitoring indicators
+    setMonitoringStatus(prev => ({
+      ...prev,
+      faceDetected: result.faceDetected,
+      singlePerson: result.singlePerson,
+      eyeTracking: !result.isLookingAway 
+    }));
 
-  // 2. If Python flagged a warning, log it in our State!
-  if (result.warning) {
-    let currentEventType = "SUSPICIOUS_BEHAVIOR";
-    let currentSeverity = "LOW";
-
-    // Classify the warning
-    if (result.warning.includes("phone") || (result.objectsDetected && result.objectsDetected.includes("cell phone"))) {
-      currentEventType = "PHONE_DETECTED";
-      currentSeverity = "CRITICAL";
-      setPhoneFlagged(true); // Flip the boolean for the database
-    } else if (!result.singlePerson && result.faceDetected) {
-      currentEventType = "MULTIPLE_PEOPLE";
-      currentSeverity = "HIGH";
-      setMultiplePeopleFlagged(true); // Flip the boolean for the database
-    } else if (!result.faceDetected) {
-      currentEventType = "NO_FACE_DETECTED";
-      currentSeverity = "MEDIUM";
-    } else if (result.isLookingAway) {
-      currentEventType = "LOOKING_AWAY";
-      currentSeverity = "LOW";
-      setLookingAwayCount(prev => prev + 1); // Increment the counter
+    // 2. SILENT LOGGING (Phones & Multiple People)
+    // As you requested, these do NOT show a warning toast to the candidate!
+    if (result.phoneDetected && !phoneFlagged) {
+      setPhoneFlagged(true);
+      setInfractionTimeline(prev => [...prev, { time: formatTime(interviewTimer), type: "PHONE_DETECTED", severity: "CRITICAL" }]);
+    }
+    
+    if (!result.singlePerson && result.faceDetected && !multiplePeopleFlagged) {
+      setMultiplePeopleFlagged(true);
+      setInfractionTimeline(prev => [...prev, { time: formatTime(interviewTimer), type: "MULTIPLE_PEOPLE", severity: "HIGH" }]);
     }
 
-    // Add the specific event to our timeline array
-    const newInfraction = {
-      time: formatTime(interviewTimer),
-      type: currentEventType,
-      severity: currentSeverity,
-      details: result.warning
-    };
+    // 3. STRICT NO FACE DETECTED WARNING (Fixed!)
+    if (!result.faceDetected && !wasFaceMissingRef.current) {
+      wasFaceMissingRef.current = true; // Mark that they left
+      toast.error("⚠️ Face not detected! Please stay in the camera frame.");
+    } else if (result.faceDetected && wasFaceMissingRef.current) {
+      wasFaceMissingRef.current = false; // Reset when they come back
+    }
 
-    setInfractionTimeline(prev => [...prev, newInfraction]);
-    
-    // Keep the visual toast array updated for the sidebar
-    setWarnings(prev => [...prev, `[${formatTime(interviewTimer)}] ${result.warning}`]);
-    toast.error(`⚠️ ${result.warning}`);
-  }
-};
+    // 4. STRICT IMMEDIATE LOOK-AWAY WARNING
+    if (result.isLookingAway && !wasLookingAwayRef.current) {
+      wasLookingAwayRef.current = true;
+      
+      setLookingAwayCount(prev => prev + 1); 
+      toast.error("⚠️ Please look at the screen.");
+      setWarnings(prev => [...prev, `[${formatTime(interviewTimer)}] Candidate looked away`]);
+      
+      setInfractionTimeline(prev => [...prev, {
+        time: formatTime(interviewTimer),
+        type: "LOOKING_AWAY_WARNING",
+        severity: "LOW"
+      }]);
+    } else if (!result.isLookingAway && wasLookingAwayRef.current) {
+      wasLookingAwayRef.current = false;
+    }
+  };
 
   // Initialize the frame-sampling hook
   useProctoringStream(videoRef, monitoringStatus.camera, sessionId, handleProctoringResult);
@@ -265,10 +270,18 @@ export function AIInterviewPage({ sessionId, onCompleteInterview }) {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         setMonitoringStatus((prev) => ({ ...prev, tabSwitch: true }));
-        setWarnings((prev) => [...prev, `Tab switch detected at ${formatTime(interviewTimer)}`]);
+        setWarnings((prev) => [...prev, `[${formatTime(interviewTimer)}] Tab switch detected`]);
         toast.error("⚠️ Tab switching detected! This has been recorded.", {
           duration: 4000,
         });
+        
+        // Log to timeline
+        setInfractionTimeline(prev => [...prev, {
+          time: formatTime(interviewTimer),
+          type: "TAB_SWITCH",
+          severity: "HIGH",
+          details: "Candidate switched browser tabs"
+        }]);
         
         setTimeout(() => {
           setMonitoringStatus((prev) => ({ ...prev, tabSwitch: false }));
@@ -299,8 +312,25 @@ export function AIInterviewPage({ sessionId, onCompleteInterview }) {
       console.error("Failed to submit proctoring report:", err);
     }
   };
+  // --- HARDWARE KILL SWITCH ---
+  const stopMediaTracks = () => {
+    // 1. Stop the Camera & Mic streams
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject;
+      stream.getTracks().forEach(track => track.stop()); // Kills the hardware light
+      videoRef.current.srcObject = null;
+    }
+    
+    // 2. Stop Speech Recognition
+    if (window.recognition) {
+      window.recognition.stop();
+    }
+
+    // 3. Update the UI State
+    setMonitoringStatus(prev => ({ ...prev, camera: false, mic: false }));
+    setIsListening(false);
+  };
   // --- HANDLE NEXT QUESTION (SAVE ANSWER) ---
-  
   const handleNextQuestion = async () => {
     if (window.recognition) {
       window.recognition.stop();
@@ -335,13 +365,21 @@ export function AIInterviewPage({ sessionId, onCompleteInterview }) {
       } else {
         toast.success("Interview completed!");
         await submitProctoringReport();
-        if (onCompleteInterview) setTimeout(onCompleteInterview, 2000);
+        if (onCompleteInterview) {
+          setTimeout(onCompleteInterview, 2000);
+        } else {
+          // Fallback: If no prop was passed, manually redirect them to the dashboard
+          setTimeout(() => {
+             window.location.href = "/"; // Change this to your dashboard/results route
+          }, 2000);
+        }
       }
     } catch (err) {
       console.error(err);
       toast.error("Failed to save answer");
     }
   };
+
   return (
     <div className="min-h-screen bg-[#F5F7FA]">
       {/* Top Status Bar */}
@@ -378,7 +416,7 @@ export function AIInterviewPage({ sessionId, onCompleteInterview }) {
             <Card className="bg-white border-gray-200 overflow-hidden shadow-lg">
               <div className="relative aspect-video bg-gradient-to-br from-gray-100 to-gray-50 overflow-hidden">
                 
-                {/* Fixed Video Implementation: Not conditionally rendered, just hidden/shown via CSS */}
+                {/* Fixed Video Implementation */}
                 <div className="absolute inset-0 flex items-center justify-center bg-black/5">
                   <video
                     ref={videoRef}

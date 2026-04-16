@@ -5,7 +5,7 @@ import { CandidateForm } from "./CandidateForm";
 import { Footer } from "./Footer";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
-export function CandidateLandingPage({ onProceedToTest }) {
+export function CandidateLandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50/30 to-cyan-50/30">
       <Header />

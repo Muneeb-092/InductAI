@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { CandidateLandingPage } from "./components/CandidateLandingPage";
 import { TestInstructionsPage } from "./components/TestInstructionsPage";
 import { MCQTestPage } from "./components/MCQTestPage";
@@ -7,73 +7,43 @@ import { AIInterviewPage } from "./components/AIInterviewPage";
 import { Toaster } from "./components/ui/sonner";
 
 export default function App() {
-  // NEW: State to hold the dynamic session ID across the entire app
-  const [sessionId, setSessionId] = useState(null);
-  
-  // Note: You might want to change this back to "landing" when you are done testing!
-  const [currentPage, setCurrentPage] = useState("landing"); 
-
-  // NEW: Accept the sessionId from the Landing Page when they fill out the form
-  const handleProceedToTest = (newSessionId) => {
-    setSessionId(newSessionId);
-    setCurrentPage("instructions");
-  };
-
-  const handleGoBack = () => {
-    setCurrentPage("landing");
-  };
-
-  const handleStartTest = () => {
-    setCurrentPage("test");
-  };
-
-  const handleSubmitTest = () => {
-    setCurrentPage("interview-instructions");
-  };
-
-  const handleStartInterview = () => {
-    setCurrentPage("interview");
-  };
-
-  const handleCompleteInterview = () => {
-    // Optional: Clear the session ID when they finish everything
-    setSessionId(null);
-    setCurrentPage("landing");
-  };
-
   return (
-    <>
+    <Router>
       <Toaster position="top-center" />
+      
+      <Routes>
+        {/* 1. Entry Point: The recruiter's link brings them here */}
+        <Route path="/apply/:jobId" element={<CandidateLandingPage />} />
 
-      {currentPage === "landing" && (
-        <CandidateLandingPage
-          onProceedToTest={handleProceedToTest}
-        />
-      )}
+        {/* 2. Instructions: Requires the newly created Session ID */}
+        <Route path="/instructions/:sessionId" element={<TestInstructionsPage />} />
 
-      {currentPage === "instructions" && (
-        <TestInstructionsPage
-          onGoBack={handleGoBack}
-          onStartTest={handleStartTest}
-        />
-      )}
+        {/* 3. The MCQ Test */}
+        <Route path="/test/:sessionId" element={<MCQTestPage />} />
 
-      {currentPage === "test" && (
-        <MCQTestPage onSubmitTest={handleSubmitTest} />
-      )}
+        {/* 4. Interview Prep */}
+        <Route path="/interview-instructions/:sessionId" element={<AIInterviewInstructionsPage />} />
 
-      {currentPage === "interview-instructions" && (
-        <AIInterviewInstructionsPage
-          onStartInterview={handleStartInterview}
-        />
-      )}
+        {/* 5. The Video Interview */}
+        <Route path="/interview/:sessionId" element={<AIInterviewPage />} />
 
-      {currentPage === "interview" && (
-        <AIInterviewPage 
-          sessionId={sessionId} // NEW: Pass the saved ID directly into the interview page!
-          onCompleteInterview={handleCompleteInterview} 
-        />
-      )}
-    </>
+        {/* 6. Success/Completion Page (Optional but recommended!) */}
+        <Route path="/success" element={
+          <div className="flex h-screen items-center justify-center flex-col text-center p-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Assessment Complete!</h1>
+            <p className="text-gray-500">Thank you for completing the evaluation. You may now close this tab.</p>
+          </div>
+        } />
+
+        {/* Fallback route: If they go to localhost:3000 without a valid link */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+        
+        <Route path="/" element={
+          <div className="flex h-screen items-center justify-center text-gray-500 p-8 text-center">
+            Welcome to InductAI. Please use the specific application link provided by your recruiter to begin.
+          </div>
+        } />
+      </Routes>
+    </Router>
   );
 }

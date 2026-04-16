@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -29,6 +29,12 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -48,150 +54,112 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const mockJobs = [
-  {
-    id: "1",
-    title: "Senior React Developer",
-    jobType: "Remote",
-    status: "Active",
-    createdOn: "2025-10-10",
-    jobLink: "https://inductai.com/apply/job-12345",
-    candidatesTested: 45,
-    candidatesInterviewed: 12,
-  },
-  {
-    id: "2",
-    title: "Product Manager",
-    jobType: "Hybrid",
-    status: "Active",
-    createdOn: "2025-10-08",
-    jobLink: "https://inductai.com/apply/job-12346",
-    candidatesTested: 32,
-    candidatesInterviewed: 8,
-  },
-  {
-    id: "3",
-    title: "UX Designer",
-    jobType: "Onsite",
-    status: "Active",
-    createdOn: "2025-10-05",
-    jobLink: "https://inductai.com/apply/job-12347",
-    candidatesTested: 28,
-    candidatesInterviewed: 6,
-  },
-  {
-    id: "4",
-    title: "Full Stack Developer",
-    jobType: "Remote",
-    status: "Closed",
-    createdOn: "2025-09-28",
-    jobLink: "https://inductai.com/apply/job-12348",
-    candidatesTested: 67,
-    candidatesInterviewed: 18,
-  },
-  {
-    id: "5",
-    title: "Data Scientist",
-    jobType: "Hybrid",
-    status: "Active",
-    createdOn: "2025-10-12",
-    jobLink: "https://inductai.com/apply/job-12349",
-    candidatesTested: 22,
-    candidatesInterviewed: 5,
-  },
-  {
-    id: "6",
-    title: "DevOps Engineer",
-    jobType: "Remote",
-    status: "Closed",
-    createdOn: "2025-09-15",
-    jobLink: "https://inductai.com/apply/job-12350",
-    candidatesTested: 41,
-    candidatesInterviewed: 11,
-  },
-  {
-    id: "7",
-    title: "Backend Developer",
-    jobType: "Onsite",
-    status: "Active",
-    createdOn: "2025-10-14",
-    jobLink: "https://inductai.com/apply/job-12351",
-    candidatesTested: 19,
-    candidatesInterviewed: 4,
-  },
-  {
-    id: "8",
-    title: "Frontend Developer",
-    jobType: "Remote",
-    status: "Active",
-    createdOn: "2025-10-11",
-    jobLink: "https://inductai.com/apply/job-12352",
-    candidatesTested: 34,
-    candidatesInterviewed: 9,
-  },
-];
-
 export function JobListingsPage({ onNavigate }) {
-  const [jobs, setJobs] = useState(mockJobs);
+
+  // 1. FIXED: Initialize as an empty array
+  const [jobs, setJobs] = useState([]); 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("newest");
   const [jobToClose, setJobToClose] = useState(null);
   const [jobToDelete, setJobToDelete] = useState(null);
+  const [jobToView, setJobToView] = useState(null);
+  // 2. Add this simple handler function
+  const handleViewJob = (job) => {
+    setJobToView(job);
+};
 
+  // 2. FIXED: Calculate dashboard stats dynamically based on the fetched jobs
   const totalJobs = jobs.length;
-  const activeJobs = jobs.filter((j) => j.status === "Active").length;
-  const closedJobs = jobs.filter((j) => j.status === "Closed").length;
-  const totalInterviews = jobs.reduce(
-    (sum, job) => sum + job.candidatesInterviewed,
-    0
-  );
+  // Note: Adjust 'Active' or 'ACTIVE' depending on how it's saved in your DB
+  const activeJobs = jobs.filter(job => job.status?.toUpperCase() === 'ACTIVE').length;
+  const closedJobs = jobs.filter(job => job.status?.toUpperCase() === 'CLOSED').length;
+  // Assuming your DB has a candidatesInterviewed column. If not, this defaults to 0.
+  const totalInterviews = jobs.reduce((sum, job) => sum + (job.candidatesInterviewed || 0), 0);
 
   const filteredJobs = jobs
     .filter((job) => {
-      const matchesSearch = job.title
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
+      // Add safety check in case job title is missing
+      const jobTitle = job.title || "";
+      const matchesSearch = jobTitle.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const jobStatus = job.status || "";
       const matchesStatus =
         statusFilter === "all" ||
-        job.status.toLowerCase() === statusFilter;
+        jobStatus.toLowerCase() === statusFilter.toLowerCase();
+        
       return matchesSearch && matchesStatus;
     })
     .sort((a, b) => {
+      // 3. FIXED: Changed createdOn to createdAt (Prisma's default)
       if (sortOrder === "newest") {
-        return (
-          new Date(b.createdOn).getTime() -
-          new Date(a.createdOn).getTime()
-        );
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       } else {
-        return (
-          new Date(a.createdOn).getTime() -
-          new Date(b.createdOn).getTime()
-        );
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       }
     });
 
   const copyJobLink = (link) => {
-    navigator.clipboard.writeText(link);
+    // Fallback if link is missing
+    const finalLink = link || "https://inductai.com/apply/pending";
+    navigator.clipboard.writeText(finalLink);
     toast.success("Job link copied to clipboard!");
   };
 
-  const handleCloseJob = (jobId) => {
-    setJobs(
-      jobs.map((job) =>
-        job.id === jobId ? { ...job, status: "Closed" } : job
-      )
-    );
-    setJobToClose(null);
-    toast.success("Job has been closed successfully");
+  const handleCloseJob = async (jobId) => {
+    try {
+      // 1. Make the API call to update the database
+      const response = await fetch(`http://localhost:5000/api/jobs/${jobId}/close`, {
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem('recruiterToken')}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (!response.ok) throw new Error("Failed to close job");
+
+      // 2. Update the React state ONLY if the database update was successful
+      setJobs(
+        jobs.map((job) =>
+          job.id === jobId ? { ...job, status: "CLOSED" } : job
+        )
+      );
+      
+      setJobToClose(null);
+      toast.success("Job has been closed successfully");
+      
+    } catch (error) {
+      console.error(error);
+      toast.error("An error occurred while closing the job.");
+    }
   };
 
-  const handleDeleteJob = (jobId) => {
-    setJobs(jobs.filter((job) => job.id !== jobId));
-    setJobToDelete(null);
-    toast.success("Job has been deleted");
-  };
+  const handleDeleteJob = async (jobId) => {
+    try {
+      // 1. Make the API call to delete from the database
+      const response = await fetch(`http://localhost:5000/api/jobs/${jobId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem('recruiterToken')}`
+        }
+      });
 
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to delete job");
+      }
+
+      // 2. Remove it from the React state ONLY if it successfully deleted from the DB
+      setJobs(jobs.filter((job) => job.id !== jobId));
+      setJobToDelete(null);
+      toast.success("Job has been deleted successfully");
+
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "An error occurred while deleting the job.");
+    }
+  };
   const getJobTypeColor = (type) => {
     switch (type) {
       case "Remote":
@@ -206,6 +174,7 @@ export function JobListingsPage({ onNavigate }) {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
       month: "short",
@@ -213,7 +182,29 @@ export function JobListingsPage({ onNavigate }) {
       year: "numeric",
     });
   };
-
+  
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        // Make sure this matches your actual backend route!
+        const response = await fetch('http://localhost:5000/api/jobs/totalJobs', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('recruiterToken')}` }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setJobs(data.data);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch jobs", error);
+      }
+    };
+  
+    fetchJobs();
+  }, []);
+  
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header Section */}
@@ -236,6 +227,7 @@ export function JobListingsPage({ onNavigate }) {
       {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto bg-[#F5F7FA]">
         <div className="p-8 space-y-6">
+          
           {/* Analytics Summary */}
           <div className="grid grid-cols-4 gap-6">
             <Card className="p-5 bg-white border-gray-200">
@@ -369,20 +361,20 @@ export function JobListingsPage({ onNavigate }) {
                       </TableCell>
                       <TableCell>
                         <Badge className={getJobTypeColor(job.jobType)}>
-                          {job.jobType}
+                          {job.jobType || "Remote"}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge className={
-                          job.status === 'Active'
+                          job.status === 'Active' || job.status === 'ACTIVE'
                             ? 'bg-green-100 text-green-700 hover:bg-green-100'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-100'
                         }>
-                          {job.status}
+                          {job.status || "Active"}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-gray-600">
-                        {formatDate(job.createdOn)}
+                        {job.createdOn}
                       </TableCell>
                       <TableCell>
                         <TooltipProvider>
@@ -399,7 +391,7 @@ export function JobListingsPage({ onNavigate }) {
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p className="text-xs">{job.jobLink}</p>
+                              <p className="text-xs">{job.jobLink || "Link not generated"}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -407,13 +399,13 @@ export function JobListingsPage({ onNavigate }) {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <UserCheck className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-900">{job.candidatesTested}</span>
+                          <span className="text-gray-900">{job.candidatesTested || 0}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <MessageSquare className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-900">{job.candidatesInterviewed}</span>
+                          <span className="text-gray-900">{job.candidatesInterviewed || 0}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -424,7 +416,7 @@ export function JobListingsPage({ onNavigate }) {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => toast.info('View details feature coming soon')}
+                                  onClick={() => handleViewJob(job)}
                                 >
                                   <Eye className="w-4 h-4" />
                                 </Button>
@@ -435,7 +427,7 @@ export function JobListingsPage({ onNavigate }) {
                             </Tooltip>
                           </TooltipProvider>
 
-                          {job.status === 'Active' && (
+                          {(job.status === 'Active' || job.status === 'ACTIVE') && (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -505,7 +497,7 @@ export function JobListingsPage({ onNavigate }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => jobToClose && handleCloseJob(jobToClose)}
-              className="bg-orange-600 hover:bg-orange-700"
+              className="bg-orange-600 hover:bg-orange-700 text-white"
             >
               Close Job
             </AlertDialogAction>
@@ -526,13 +518,100 @@ export function JobListingsPage({ onNavigate }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => jobToDelete && handleDeleteJob(jobToDelete)}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
               Delete Job
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* --- VIEW JOB DETAILS MODAL --- */}
+      <Dialog open={!!jobToView} onOpenChange={(open) => !open && setJobToView(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          {jobToView && (
+            <>
+              <DialogHeader className="border-b border-gray-100 pb-4 mb-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <DialogTitle className="text-2xl font-bold text-gray-900">
+                      {jobToView.title}
+                    </DialogTitle>
+                    <div className="flex gap-2 mt-2">
+                      <Badge className={jobToView.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}>
+                        {jobToView.status}
+                      </Badge>
+                      <Badge variant="outline" className="text-gray-600 capitalize">
+                        {jobToView.jobType}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-6">
+                {/* Top Stats Row */}
+                <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium mb-1">Experience</p>
+                    <p className="text-gray-900 font-semibold">{jobToView.experience} Years</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium mb-1">Gender Pref.</p>
+                    <p className="text-gray-900 font-semibold capitalize">{jobToView.gender || "Any"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium mb-1">Age Range</p>
+                    <p className="text-gray-900 font-semibold">
+                      {jobToView.minAge || "Any"} - {jobToView.maxAge || "Any"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
+                  <div className="p-4 bg-white border border-gray-200 rounded-xl">
+                    <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                      {jobToView.description}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Application Link */}
+                {jobToView.jobLink && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Shareable Link</h3>
+                    <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                      <code className="text-sm text-[#0052CC] truncate pr-4">
+                        {jobToView.jobLink}
+                      </code>
+                      <Button 
+                        size="sm" 
+                        className="bg-white text-[#0052CC] hover:bg-gray-50 border border-blue-200"
+                        onClick={() => {
+                          navigator.clipboard.writeText(jobToView.jobLink);
+                          toast.success("Link copied!");
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Footer */}
+              <div className="mt-6 flex justify-end pt-4 border-t border-gray-100">
+                <Button variant="outline" onClick={() => setJobToView(null)}>
+                  Close
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
+  
 }

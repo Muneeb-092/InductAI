@@ -29,7 +29,7 @@ export const useProctoringStream = (videoRef, isMonitoringActive, sessionId, onA
       const base64Image = canvas.toDataURL("image/jpeg", 0.5);
 
       try {
-        const response = await fetch("http://localhost:5000/api/analyze-frame", { // Update URL to match your routes if needed
+        const response = await fetch("http://localhost:8000/analyze", { // Update URL to match your routes if needed
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 

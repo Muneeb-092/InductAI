@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useParams, useNavigate } from 'react-router-dom';
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -7,10 +8,12 @@ import { Textarea } from "./ui/textarea";
 import { Checkbox } from "./ui/checkbox";
 import { Button } from "./ui/button";
 import { User, Mail, Phone, GraduationCap, Briefcase, Upload, Shield } from "lucide-react";
-import { toast } from "sonner"; // Removed @2.0.3 to match standard imports
+import { toast } from "sonner";
 
-// NEW: Added isSubmitting state and updated props to pass back the real ID
-export function CandidateForm({ onProceedToTest }) {
+// REMOVED the onProceedToTest prop
+export function CandidateForm() {
+  const { jobId } = useParams(); 
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
@@ -45,7 +48,6 @@ export function CandidateForm({ onProceedToTest }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  // --- NEW: The API Submission Logic ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -53,7 +55,6 @@ export function CandidateForm({ onProceedToTest }) {
       setIsSubmitting(true);
       
       try {
-        // 1. Send candidate info to backend to create Candidate AND start Session
         const response = await fetch("http://localhost:5000/api/register-candidate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -66,7 +67,8 @@ export function CandidateForm({ onProceedToTest }) {
             qualification: formData.qualification,
             experience: formData.experience,
             skills: formData.skills,
-            jobId: 4 // Hardcoded for now, assuming they are applying for Job #4. Change if needed!
+            // Using the actual jobId from the URL!
+            jobId: parseInt(jobId) || 0 
           })
         });
 
@@ -75,9 +77,9 @@ export function CandidateForm({ onProceedToTest }) {
         if (response.ok && data.sessionId) {
           toast.success("Profile created successfully! Redirecting...");
           
-          // 2. Pass the real, newly created Session ID up to the parent component
+          // NEW: Use React Router to navigate to the instructions page with the sessionId
           setTimeout(() => {
-            onProceedToTest(data.sessionId); 
+            navigate(`/instructions/${data.sessionId}`);
           }, 1500);
         } else {
           toast.error(data.error || "Failed to start session.");

@@ -74,7 +74,8 @@ model Job {
   description  String
   experience   Int
   jobType      String
-  
+  status      String   @default("ACTIVE")
+  jobLink      String?
   // Preference Fields
   gender       String?  @default("any")
   minAge       Int?

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useParams, useNavigate } from 'react-router-dom';
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { ProgressIndicator } from "./ProgressIndicator";
@@ -7,6 +8,7 @@ import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Badge } from "./ui/badge";
 import { SystemCheckDialog } from "./SystemCheckDialog";
+
 import {
   Camera,
   Mic,
@@ -34,6 +36,8 @@ export function AIInterviewInstructionsPage({
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [systemCheckOpen, setSystemCheckOpen] = useState(false);
   const [countdown, setCountdown] = useState(null);
+  const { sessionId } = useParams();
+  const navigate = useNavigate();
 
   const handleStartInterview = () => {
     if (!agreedToTerms) {
@@ -48,7 +52,7 @@ export function AIInterviewInstructionsPage({
         if (prev === null || prev <= 1) {
           clearInterval(interval);
           toast.success("Starting AI interview now...");
-          onStartInterview();
+          navigate(`/interview/${sessionId}`);
           return null;
         }
         return prev - 1;

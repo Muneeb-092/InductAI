@@ -1,15 +1,23 @@
 # ml_server.py
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 import cv2
 import numpy as np
 import base64
+import time  # <-- NEW: We need this for the 2-second stopwatch
 from ultralytics import YOLO
 import mediapipe as mp
 
 app = FastAPI()
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all frontends (like localhost:3000) to connect
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows POST, GET, etc.
+    allow_headers=["*"],  # Allows all headers
+)
 # 1. Load Models
 model = YOLO('yolov8n.pt') 
 mp_face_mesh = mp.solutions.face_mesh
@@ -21,9 +29,9 @@ face_mesh = mp_face_mesh.FaceMesh(
     min_detection_confidence=0.5
 )
 
-# --- NEW: Session-based Frame Counter Dictionary ---
-# This safely keeps track of consecutive frames for specific sessions
-session_look_away_counters = {}
+# --- NEW: Time-based tracking dictionary ---
+# Instead of counting frames, we save the EXACT TIME they started looking away
+session_look_away_start_times = {}
 
 class FramePayload(BaseModel):
     image: str
@@ -38,9 +46,11 @@ def decode_image(base64_string):
 @app.post("/analyze")
 async def analyze_frame(payload: FramePayload):
     try:
-        # Initialize the counter for this specific session if it's new
-        if payload.sessionId not in session_look_away_counters:
-            session_look_away_counters[payload.sessionId] = 0
+        current_time = time.time()
+        
+        # Initialize the timer for this specific session if it's new
+        if payload.sessionId not in session_look_away_start_times:
+            session_look_away_start_times[payload.sessionId] = None
 
         frame = decode_image(payload.image)
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -54,16 +64,13 @@ async def analyze_frame(payload: FramePayload):
             if label == "person": person_count += 1
             if label == "cell phone": phone_detected = True
 
-        # --- 3. MediaPipe Eye Tracking (Full 4-Way Tracking) ---
+        # --- 3. MediaPipe Eye Tracking ---
         face_results = face_mesh.process(rgb_frame)
-        math_looking_away = False # Renamed this to represent the raw math calculation
+        math_looking_away = False 
         
         if face_results.multi_face_landmarks:
             mesh_coords = face_results.multi_face_landmarks[0].landmark
             
-            # ------------------------------------------------
-            # HORIZONTAL (LEFT / RIGHT)
-            # ------------------------------------------------
             # Left Eye (X)
             l_corner1_x = mesh_coords[33].x
             l_corner2_x = mesh_coords[133].x
@@ -80,18 +87,15 @@ async def analyze_frame(payload: FramePayload):
             r_eye_leftmost = min(r_corner1_x, r_corner2_x)
             right_x_ratio = (right_iris_x - r_eye_leftmost) / (r_eye_width + 1e-6)
 
-            # ------------------------------------------------
-            # VERTICAL (UP / DOWN)
-            # ------------------------------------------------
-            # Left Eye Lids (Y) - 159 is Top, 145 is Bottom
+            # Left Eye Lids (Y)
             l_top_y = mesh_coords[159].y
             l_bottom_y = mesh_coords[145].y
             left_iris_y = mesh_coords[468].y
             l_eye_height = abs(l_top_y - l_bottom_y)
-            l_eye_topmost = min(l_top_y, l_bottom_y) # min is top because Y goes down
+            l_eye_topmost = min(l_top_y, l_bottom_y) 
             left_y_ratio = (left_iris_y - l_eye_topmost) / (l_eye_height + 1e-6)
 
-            # Right Eye Lids (Y) - 386 is Top, 374 is Bottom
+            # Right Eye Lids (Y)
             r_top_y = mesh_coords[386].y
             r_bottom_y = mesh_coords[374].y
             right_iris_y = mesh_coords[473].y
@@ -102,47 +106,47 @@ async def analyze_frame(payload: FramePayload):
             # --- DEBUG PRINT ---
             print(f"👁️ X(L/R): {left_x_ratio:.2f}/{right_x_ratio:.2f} | Y(L/R): {left_y_ratio:.2f}/{right_y_ratio:.2f}")
 
-            if (left_x_ratio < 0.25 or left_x_ratio > 0.75) or \
-               (right_x_ratio < 0.25 or right_x_ratio > 0.75) or \
-               (left_y_ratio < 0.20 or left_y_ratio > 0.80) or \
-               (right_y_ratio < 0.20 or right_y_ratio > 0.80):
+            # REVERTED TO STRICTER ORIGINAL THRESHOLDS:
+            # Horizontal bounds: < 0.35 or > 0.65
+            # Vertical bounds: < 0.30 or > 0.70
+            if (left_x_ratio < 0.35 or left_x_ratio > 0.65) or \
+               (right_x_ratio < 0.35 or right_x_ratio > 0.65) or \
+               (left_y_ratio < 0.30 or left_y_ratio > 0.70) or \
+               (right_y_ratio < 0.30 or right_y_ratio > 0.70):
                 math_looking_away = True
             else:
-                math_looking_away = False 
+                math_looking_away = False
         else:
             # Trigger if no eyes are detected
             math_looking_away = True
 
-        # --- NEW: APPLY THE FRAME BUFFER LOGIC ---
+        # --- THE TRUE 2-SECOND STOPWATCH ---
+        is_looking_away_confirmed = False
+        
         if math_looking_away:
-            session_look_away_counters[payload.sessionId] += 1
+            # If this is the exact moment they started looking away, start the stopwatch
+            if session_look_away_start_times[payload.sessionId] is None:
+                session_look_away_start_times[payload.sessionId] = current_time
+            else:
+                # Check if 2.0 seconds have passed since they looked away
+                elapsed_time = current_time - session_look_away_start_times[payload.sessionId]
+                if elapsed_time >= 2.0:
+                    is_looking_away_confirmed = True
         else:
-            session_look_away_counters[payload.sessionId] = 0 # Reset if they look back at the screen!
+            # They looked back at the screen! Reset the stopwatch to None.
+            session_look_away_start_times[payload.sessionId] = None
 
-        # Only officially trigger the warning if they've looked away for 15+ consecutive frames
-        is_looking_away_confirmed = session_look_away_counters[payload.sessionId] > 15
-
-        # --- 4. Final Logic & Warnings ---
-        warning = None
-        if phone_detected:
-            warning = "Mobile phone detected!"
-        elif person_count > 1:
-            warning = "Multiple people detected!"
-        elif is_looking_away_confirmed and person_count > 0:
-            warning = "Please look at the screen."
-        elif person_count == 0:
-            warning = "Face not detected!"
-
+        # --- 4. Final Data Return ---
         return {
             "faceDetected": person_count > 0,
             "singlePerson": person_count == 1,
             "isLookingAway": is_looking_away_confirmed,
-            "objectsDetected": [model.names[int(b.cls[0])] for b in results.boxes],
-            "warning": warning
+            "phoneDetected": phone_detected, # FIX: Added this back so React can log phones silently!
+            "objectsDetected": [model.names[int(b.cls[0])] for b in results.boxes]
         }
     except Exception as e:
         print(f"Error: {e}")
-        return {"warning": "AI System Error"}
+        return {"error": "AI System Error"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)
