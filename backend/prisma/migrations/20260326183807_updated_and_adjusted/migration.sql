@@ -2,13 +2,16 @@
 CREATE TYPE "QuestionType" AS ENUM ('MCQ', 'INTERVIEW');
 
 -- CreateEnum
-CREATE TYPE "SkillType" AS ENUM ('TECHNICAL', 'SOFTSKILL');
-
--- CreateEnum
-CREATE TYPE "QuestionCategory" AS ENUM ('MUST_ASK', 'OPTIONAL', 'EXTRA');
+CREATE TYPE "SkillType" AS ENUM ('CORE', 'SECONDARY');
 
 -- CreateEnum
 CREATE TYPE "SessionStatus" AS ENUM ('STARTED', 'MCQ_COMPLETED', 'INTERVIEW_COMPLETED', 'COMPLETED', 'TERMINATED');
+
+-- CreateEnum
+CREATE TYPE "QuestionDifficuty" AS ENUM ('EASY', 'MEDIUM', 'HARD');
+
+-- CreateEnum
+CREATE TYPE "Experience_levels" AS ENUM ('BEGINNER', 'INTERMEDIATE', 'ADVANCED');
 
 -- CreateTable
 CREATE TABLE "Recruiter" (
@@ -23,6 +26,14 @@ CREATE TABLE "Recruiter" (
 );
 
 -- CreateTable
+CREATE TABLE "Skill" (
+    "id" SERIAL NOT NULL,
+    "name" TEXT NOT NULL,
+
+    CONSTRAINT "Skill_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Job" (
     "id" SERIAL NOT NULL,
     "recruiterId" INTEGER NOT NULL,
@@ -30,20 +41,41 @@ CREATE TABLE "Job" (
     "description" TEXT NOT NULL,
     "experience" INTEGER NOT NULL,
     "jobType" TEXT NOT NULL,
+    "gender" TEXT DEFAULT 'any',
+    "minAge" INTEGER,
+    "maxAge" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Job_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "AssessmentLink" (
+CREATE TABLE "JobSkill" (
     "id" SERIAL NOT NULL,
     "jobId" INTEGER NOT NULL,
-    "token" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "skillId" INTEGER NOT NULL,
+    "importance" TEXT NOT NULL,
 
-    CONSTRAINT "AssessmentLink_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "JobSkill_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "QuestionBank" (
+    "id" SERIAL NOT NULL,
+    "questionType" "QuestionType" NOT NULL,
+    "skillType" "SkillType" NOT NULL,
+    "skillName" TEXT NOT NULL,
+    "skillId" INTEGER,
+    "difficulty" "QuestionDifficuty",
+    "experience_level" "Experience_levels",
+    "text" TEXT NOT NULL,
+    "options" JSONB,
+    "correctAns" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastUsedAt" TIMESTAMP(3),
+
+    CONSTRAINT "QuestionBank_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -68,27 +100,6 @@ CREATE TABLE "AssessmentSession" (
     "status" "SessionStatus" NOT NULL,
 
     CONSTRAINT "AssessmentSession_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "QuestionBank" (
-    "id" SERIAL NOT NULL,
-    "role" TEXT NOT NULL,
-    "experience" INTEGER NOT NULL,
-    "questionType" "QuestionType" NOT NULL,
-    "skillType" "SkillType" NOT NULL,
-    "skillName" TEXT NOT NULL,
-    "category" "QuestionCategory" NOT NULL,
-    "difficulty" TEXT NOT NULL,
-    "text" TEXT NOT NULL,
-    "options" JSONB,
-    "correctAns" TEXT,
-    "source" TEXT NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "lastUsedAt" TIMESTAMP(3),
-
-    CONSTRAINT "QuestionBank_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -160,15 +171,16 @@ CREATE TABLE "InterviewAnswer" (
 );
 
 -- CreateTable
-CREATE TABLE "CheatingLog" (
+CREATE TABLE "ProctoringReport" (
     "id" SERIAL NOT NULL,
     "sessionId" INTEGER NOT NULL,
-    "eventType" TEXT NOT NULL,
-    "severity" TEXT NOT NULL,
-    "metadata" JSONB NOT NULL,
-    "detectedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lookingAwayCount" INTEGER NOT NULL DEFAULT 0,
+    "multiplePeopleDetected" BOOLEAN NOT NULL DEFAULT false,
+    "phoneDetected" BOOLEAN NOT NULL DEFAULT false,
+    "infractionTimeline" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "CheatingLog_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ProctoringReport_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -187,7 +199,16 @@ CREATE TABLE "Report" (
 CREATE UNIQUE INDEX "Recruiter_email_key" ON "Recruiter"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AssessmentLink_token_key" ON "AssessmentLink"("token");
+CREATE UNIQUE INDEX "Skill_name_key" ON "Skill"("name");
+
+-- CreateIndex
+CREATE INDEX "JobSkill_jobId_idx" ON "JobSkill"("jobId");
+
+-- CreateIndex
+CREATE INDEX "JobSkill_skillId_idx" ON "JobSkill"("skillId");
+
+-- CreateIndex
+CREATE INDEX "QuestionBank_skillId_idx" ON "QuestionBank"("skillId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "JobQuestionPool_jobId_questionId_key" ON "JobQuestionPool"("jobId", "questionId");
@@ -202,13 +223,22 @@ CREATE UNIQUE INDEX "MCQAttempt_sessionId_key" ON "MCQAttempt"("sessionId");
 CREATE UNIQUE INDEX "Interview_sessionId_key" ON "Interview"("sessionId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "ProctoringReport_sessionId_key" ON "ProctoringReport"("sessionId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Report_sessionId_key" ON "Report"("sessionId");
 
 -- AddForeignKey
 ALTER TABLE "Job" ADD CONSTRAINT "Job_recruiterId_fkey" FOREIGN KEY ("recruiterId") REFERENCES "Recruiter"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AssessmentLink" ADD CONSTRAINT "AssessmentLink_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "JobSkill" ADD CONSTRAINT "JobSkill_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobSkill" ADD CONSTRAINT "JobSkill_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "Skill"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "QuestionBank" ADD CONSTRAINT "QuestionBank_skillId_fkey" FOREIGN KEY ("skillId") REFERENCES "Skill"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AssessmentSession" ADD CONSTRAINT "AssessmentSession_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "Candidate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -247,7 +277,7 @@ ALTER TABLE "InterviewAnswer" ADD CONSTRAINT "InterviewAnswer_interviewId_fkey" 
 ALTER TABLE "InterviewAnswer" ADD CONSTRAINT "InterviewAnswer_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "QuestionBank"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "CheatingLog" ADD CONSTRAINT "CheatingLog_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "AssessmentSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ProctoringReport" ADD CONSTRAINT "ProctoringReport_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "AssessmentSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Report" ADD CONSTRAINT "Report_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "AssessmentSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
