@@ -9,6 +9,8 @@ const questionRoutes = require('./routes/questionRoutes');
 dotenv.config();
 const reportRoutes = require('./routes/reportRoutes');
 const candidateRoutes = require('./routes/candidateRoutes');
+const sessionRoutes = require('./routes/sessionRoute');
+
 
 const app = express();
 
@@ -24,6 +26,9 @@ app.use("/api/skills", skillRoutes);
 app.use("/api/interview", interviewRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/candidates", candidateRoutes);
+app.use("/api/generate", sessionRoutes);
+app.use("/api/getMCQs", sessionRoutes);
+app.use("/api/session", sessionRoutes);
 
 // 3. General API Routes Last
 app.use('/api', proctoringRoutes);

@@ -36,26 +36,43 @@ export function TestInstructionsPage() {
   const { sessionId } = useParams(); 
   const navigate = useNavigate();
 
-  const handleStartTest = () => {
-    if (!agreedToTerms) {
-      toast.error("Please agree to the instructions and privacy policy");
-      return;
+  const handleStartTest = async () => {
+  try {
+    // 1. Call your backend API
+    const res = await fetch(
+      `http://localhost:5000/api/generate/${sessionId}`,
+      {
+        method: "POST",
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to generate questions");
     }
 
-    // Start countdown
-    setCountdown(3);
+    // 2. Start countdown AFTER success
+    let time = 3;
+    setCountdown(time);
+
     const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev === null || prev <= 1) {
-          clearInterval(interval);
-          toast.success("Starting test now...");
-          navigate(`/test/${sessionId}`);
-          return null;
-        }
-        return prev - 1;
-      });
+      time--;
+      setCountdown(time);
+
+      if (time === 0) {
+        clearInterval(interval);
+
+        // 3. Navigate to MCQ page
+        navigate(`/test/${sessionId}`);
+      }
     }, 1000);
-  };
+
+  } catch (err) {
+    console.error("Error starting test:", err);
+    alert("Failed to start test. Try again.");
+  }
+};
 
   const handleGoBack = () => {
     toast.info("Returning to candidate information...");

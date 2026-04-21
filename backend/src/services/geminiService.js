@@ -173,6 +173,7 @@ exports.generateQuestionsForSkill = async (skillName, experienceLevel, skillType
         - 4 options only
         - options order = A, B, C, D
         - correct_answer must be "A" | "B" | "C" | "D"
+        - correct_answer must be random 
         - practical, non-repetitive
         - cover multiple subtopics
 

@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Camera, Mic, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner@2.0.3";
@@ -14,29 +20,40 @@ export function SystemCheckDialog({ open, onOpenChange }) {
     setCameraStatus("checking");
     setMicStatus("checking");
 
-    // Simulate camera check
-    setTimeout(() => {
-      try {
-        // In a real app, you would check actual camera permissions here
-        setCameraStatus("success");
-      } catch {
-        setCameraStatus("error");
-      }
-    }, 1000);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
 
-    // Simulate microphone check
-    setTimeout(() => {
-      try {
-        // In a real app, you would check actual microphone permissions here
-        setMicStatus("success");
-        setChecking(false);
-        toast.success("System check completed successfully!");
-      } catch {
+      // If both permissions granted
+      setCameraStatus("success");
+      setMicStatus("success");
+
+      // Stop tracks immediately after check
+      stream.getTracks().forEach((track) => track.stop());
+
+      toast.success("System check completed successfully!");
+    } catch (err) {
+      console.error(err);
+
+      // Handle specific permission failures
+      if (err.name === "NotAllowedError") {
+        setCameraStatus("error");
         setMicStatus("error");
-        setChecking(false);
-        toast.error("System check failed. Please check your permissions.");
+        toast.error("Permission denied. Please allow camera & microphone.");
+      } else if (err.name === "NotFoundError") {
+        setCameraStatus("error");
+        setMicStatus("error");
+        toast.error("Camera or microphone not found.");
+      } else {
+        setCameraStatus("error");
+        setMicStatus("error");
+        toast.error("Something went wrong during system check.");
       }
-    }, 1500);
+    } finally {
+      setChecking(false);
+    }
   };
 
   const getStatusIcon = (status) => {
@@ -48,7 +65,9 @@ export function SystemCheckDialog({ open, onOpenChange }) {
       case "error":
         return <XCircle className="w-5 h-5 text-red-500" />;
       default:
-        return <div className="w-5 h-5 rounded-full border-2 border-gray-300" />;
+        return (
+          <div className="w-5 h-5 rounded-full border-2 border-gray-300" />
+        );
     }
   };
 
@@ -79,13 +98,14 @@ export function SystemCheckDialog({ open, onOpenChange }) {
             {getStatusIcon(micStatus)}
           </div>
 
-          {cameraStatus === "error" || micStatus === "error" ? (
+          {(cameraStatus === "error" || micStatus === "error") && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-800">
-                Please allow camera and microphone access in your browser settings to continue.
+                Please allow camera and microphone access in your browser
+                settings to continue.
               </p>
             </div>
-          ) : null}
+          )}
         </div>
 
         <div className="flex gap-3">

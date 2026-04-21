@@ -37,15 +37,17 @@ const saveInterviewAnswer = async (sessionId, questionId, answerText) => {
 
   return savedAnswer;
 };
+
 // =========================================================
 const getInterviewQuestions = async (sessionId) => {
-  const questions = await prisma.sessionQuestion.findMany({
+  let questions = await prisma.sessionQuestion.findMany({
     where: {
       sessionId: parseInt(sessionId)
     },
     orderBy: {
-      orderIndex: "asc"
+      orderIndex: "desc" // 🔥 Start from the highest order index (the end)
     },
+    take: 10, // 🔥 Only grab the last 10 records
     include: {
       question: true
     }
@@ -55,6 +57,9 @@ const getInterviewQuestions = async (sessionId) => {
   if (!questions || questions.length === 0) {
     throw new Error(`No session questions found for sessionId: ${sessionId}`);
   }
+
+  // 🔥 Reverse the array so the questions flow in standard ascending order
+  questions.reverse();
 
   return questions.map((q) => ({
     id: q.question.id,
