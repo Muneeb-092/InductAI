@@ -138,7 +138,30 @@ const [maxAge, setMaxAge] = useState("");
 
  const handleSubmit = async (e) => {
   e.preventDefault();
+  const min = parseInt(minAge);
+  const max = parseInt(maxAge);
 
+  if (min <= 0 || max <= 0) {
+    toast.error("Age must be greater than 0");
+    return;
+  }
+
+  if (max <= min) {
+    toast.error("Maximum age must be greater than minimum age");
+    return;
+  }
+
+  // 2. Experience Check
+  if (parseInt(experience) < 0) {
+    toast.error("Experience cannot be a negative number");
+    return;
+  }
+
+  // 3. Required Fields Check (The "Big Three")
+  if (!jobTitle.trim() || !description.trim() || !experience) {
+    toast.error("Please fill in Title, Description, and Experience");
+    return;
+  }
   const hasCoreSkill = skills.some((s) => s.importance === "core");
 
   if (skills.length === 0) {
@@ -479,7 +502,7 @@ const [maxAge, setMaxAge] = useState("");
                         type="number"
                         value={minAge}
                         onChange={(e) => setMinAge(e.target.value)}
-                        min="18"
+                        min="14"
                         placeholder="e.g., 22"
                         className="mt-2"
                       />
@@ -491,7 +514,8 @@ const [maxAge, setMaxAge] = useState("");
                         type="number"
                         value={maxAge}
                         onChange={(e) => setMaxAge(e.target.value)}
-                        max="65"
+                        min="14"
+                        max="80"
                         placeholder="e.g., 45"
                         className="mt-2"
                       />

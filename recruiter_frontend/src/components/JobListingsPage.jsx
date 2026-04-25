@@ -3,6 +3,7 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -69,6 +70,7 @@ export function JobListingsPage({ onNavigate }) {
     setJobToView(job);
 };
 
+  const navigate = useNavigate();
   // 2. FIXED: Calculate dashboard stats dynamically based on the fetched jobs
   const totalJobs = jobs.length;
   // Note: Adjust 'Active' or 'ACTIVE' depending on how it's saved in your DB
@@ -215,7 +217,7 @@ export function JobListingsPage({ onNavigate }) {
             <p className="text-gray-500 mt-1">View and manage all your active and closed job posts.</p>
           </div>
           <Button
-            onClick={() => onNavigate?.('Create Job')}
+            onClick={() => navigate('/create-job')}
             className="bg-gradient-to-r from-[#0052CC] to-[#00B8D9] hover:opacity-90"
           >
             <Plus className="w-4 h-4 mr-2" />

@@ -3,6 +3,7 @@ const prisma = require("../config/db");
 
 exports.createJob = async (req, res) => {
   try {
+    
     const recruiterId = req.recruiter.id;
 
     // 1. Create the job first so PostgreSQL assigns it an ID
@@ -87,7 +88,13 @@ exports.getTotalJobs = async (req, res) => {
         createdOn: createdOnDate,
         jobLink: job.jobLink,
         candidatesTested: candidatesTested,
-        candidatesInterviewed: candidatesInterviewed
+        candidatesInterviewed: candidatesInterviewed,
+        description: job.description,
+        experience: job.experience,
+        gender: job.gender,
+        minAge: job.minAge,
+        maxAge: job.maxAge,
+        createdAt: job.createdAt
       };
     });
 
@@ -194,5 +201,39 @@ exports.deleteJob = async (req, res) => {
       success: false, 
       message: "Failed to archive job" 
     });
+  }
+};
+
+// --- GET SINGLE JOB BY ID (Public for Candidates) ---
+exports.getJobById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const job = await prisma.job.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        // We include recruiter to show the Company Name (organization)
+        recruiter: {
+          select: {
+            organization: true,
+          },
+        },
+        // We include skills so the candidate knows what they are being tested on
+        skills: {
+          include: {
+            skill: true,
+          },
+        },
+      },
+    });
+
+    if (!job) {
+      return res.status(404).json({ success: false, message: "Job not found" });
+    }
+
+    res.status(200).json({ success: true, data: job });
+  } catch (error) {
+    console.error("Error fetching single job:", error);
+    res.status(500).json({ success: false, message: "Server error fetching job details" });
   }
 };

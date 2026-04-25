@@ -3,7 +3,7 @@ const router = express.Router();
 
 // We can just destructure all your controller functions nicely here
 const { createJob, getTotalJobsCount, getTotalJobs, closeJob, deleteJob } = require("../controllers/jobController");
-
+const { getJobById } = require("../controllers/jobController");
 // Import the middleware
 const { verifyToken } = require('../middleware/authMiddleware');
 
@@ -13,5 +13,5 @@ router.get("/totalJobs", verifyToken, getTotalJobs);
 router.post("/", verifyToken, createJob);
 router.patch("/:id/close", verifyToken, closeJob); 
 router.delete("/:id", verifyToken, deleteJob);
-
+router.get("/:id", getJobById); // Public route for candidates
 module.exports = router;

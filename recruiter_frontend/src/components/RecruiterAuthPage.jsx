@@ -107,7 +107,7 @@ export function RecruiterAuthPage() {
                   <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
                     id="organization"
-                    placeholder="TechCorp Solutions"
+                    placeholder="Organization Name"
                     className="pl-10 h-11"
                     value={formData.organization}
                     onChange={handleChange}
