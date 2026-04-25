@@ -150,6 +150,7 @@ const [maxAge, setMaxAge] = useState("");
     toast.error("At least one core skill must be selected.");
     return;
   }
+  const token = localStorage.getItem('recruiterToken');
 
   try {
     const payload = {
@@ -167,6 +168,7 @@ const [maxAge, setMaxAge] = useState("");
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
       },
       body: JSON.stringify(payload),
     });
@@ -179,15 +181,14 @@ const [maxAge, setMaxAge] = useState("");
 
     const jobId = data.data.job.id;
 
-    // 🔥 Generate link (NOT stored in DB)
-    const link = `http://localhost:5173/apply/job-${jobId}`;
+    const link = data.data.jobLink
     setJobLink(link);
 
     setShowSuccess(true);
 
       fetch("/api/questions/verify-bank", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json","Authorization": `Bearer ${token}` },
     body: JSON.stringify({ 
       skills, 
       // Change userExperience to experience (your state variable)

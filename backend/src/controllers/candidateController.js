@@ -2,8 +2,8 @@ const prisma = require("../config/db");
 
 exports.getAllCandidates = async (req, res) => {
   try {
-    const currentRecruiterId = 1; // Hardcoded until JWT is implemented
-
+    const currentRecruiterId = req.recruiter.id;
+    
     // This single query does exactly what you described:
     // It finds all sessions where the linked Job belongs to the Recruiter,
     // and it pulls in the linked Candidate data!

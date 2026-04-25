@@ -6,6 +6,7 @@ const interviewRoutes = require("./routes/ai_get_inter_ques_route");
 const proctoringRoutes = require('./routes/proctoring_route');
 const jobRoutes = require('./routes/jobRoutes');
 const questionRoutes = require('./routes/questionRoutes');
+const authController = require('./controllers/authController');
 dotenv.config();
 const reportRoutes = require('./routes/reportRoutes');
 const candidateRoutes = require('./routes/candidateRoutes');
@@ -42,5 +43,6 @@ app.listen(PORT, () => {
 app.get("/", (req, res) => {
   res.send("AI Interview Backend Running");
 });
-
+app.post('/api/auth/register', authController.registerRecruiter);
+app.post('/api/auth/login', authController.loginRecruiter);
 module.exports = app;

@@ -3,7 +3,7 @@ const prisma = require("../config/db");
 
 exports.createJob = async (req, res) => {
   try {
-    const recruiterId = 1; // Replace with real auth later
+    const recruiterId = req.recruiter.id;
 
     // 1. Create the job first so PostgreSQL assigns it an ID
     const job = await jobService.createJob({
@@ -38,7 +38,7 @@ exports.createJob = async (req, res) => {
 };
 exports.getTotalJobs = async (req, res) => {
   try {
-    const currentRecruiterId = 1; // Hardcoded for now until JWT is added
+    const currentRecruiterId = req.recruiter.id;
 
     const allJobs = await prisma.job.findMany({
       where: {
@@ -104,8 +104,8 @@ exports.getTotalJobs = async (req, res) => {
 };
 exports.getTotalJobsCount = async (req, res) => {
   try {
-    const currentRecruiterId = 1; // Hardcoded for now until JWT is added
-
+    const currentRecruiterId = req.recruiter.id;
+    
     // 1. Total Jobs
     const totalJobs = await prisma.job.count({
       where: { 
