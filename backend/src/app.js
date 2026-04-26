@@ -6,7 +6,7 @@ const interviewRoutes = require("./routes/ai_get_inter_ques_route");
 const proctoringRoutes = require('./routes/proctoring_route');
 const jobRoutes = require('./routes/jobRoutes');
 const questionRoutes = require('./routes/questionRoutes');
-const authController = require('./controllers/authController');
+const authRoutes = require('./routes/authRoutes');
 dotenv.config();
 const reportRoutes = require('./routes/reportRoutes');
 const candidateRoutes = require('./routes/candidateRoutes');
@@ -30,6 +30,7 @@ app.use("/api/candidates", candidateRoutes);
 app.use("/api/generate", sessionRoutes);
 app.use("/api/getMCQs", sessionRoutes);
 app.use("/api/session", sessionRoutes);
+app.use('/api/auth', authRoutes);
 
 // 3. General API Routes Last
 app.use('/api', proctoringRoutes);
@@ -43,6 +44,5 @@ app.listen(PORT, () => {
 app.get("/", (req, res) => {
   res.send("AI Interview Backend Running");
 });
-app.post('/api/auth/register', authController.registerRecruiter);
-app.post('/api/auth/login', authController.loginRecruiter);
+
 module.exports = app;
