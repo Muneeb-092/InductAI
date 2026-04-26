@@ -46,6 +46,8 @@ export function AIInterviewPage({ onCompleteInterview }) {
   const wasLookingAwayRef = useRef(false); // Keeps the app from spamming 30 toasts per second
   const wasFaceMissingRef = useRef(false);
 
+  const [isFinalizing, setIsFinalizing] = useState(false);
+
   const [monitoringStatus, setMonitoringStatus] = useState({
     camera: false, 
     mic: false,
@@ -332,53 +334,78 @@ export function AIInterviewPage({ onCompleteInterview }) {
   };
   // --- HANDLE NEXT QUESTION (SAVE ANSWER) ---
   const handleNextQuestion = async () => {
-    if (window.recognition) {
-      window.recognition.stop();
+  if (window.recognition) {
+    window.recognition.stop();
+  }
+
+  const currentQuestion = interviewQuestions[currentQuestionIndex];
+  setSaving(true);
+
+  try {
+    // 1. ALWAYS save the current answer first (even if it's the last one)
+    const response = await fetch("http://localhost:5000/api/interview/answer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        questionId: currentQuestion.id,
+        answerText: transcript, // This is the text from speech recognition
+      }),
+    });
+
+    const data = await response.json();
+    if (!data.success) {
+      toast.error("Failed to save your answer. Please try clicking again.");
+      setSaving(false);
+      return;
     }
-  
-    const currentQuestion = interviewQuestions[currentQuestionIndex];
-    try {
-      const response = await fetch("http://localhost:5000/api/interview/answer", {
+
+    // 2. Decide if we move to next question OR finish
+    if (currentQuestionIndex < interviewQuestions.length - 1) {
+      // Not the last question: just move forward
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setAiText("");
+      setTranscript("");
+      setSaving(false);
+    } else {
+      // THIS IS THE LAST QUESTION - Start the Finalization Chain
+      setIsFinalizing(true);
+      toast.info("Finalizing your interview and generating report...");
+
+      // A. Stop hardware (Camera/Mic)
+      stopMediaTracks();
+
+      // B. Submit the proctoring data (logs of looking away, tab switches, etc.)
+      await submitProctoringReport();
+
+      // C. CALL THE EVALUATION API 
+      // This is the specific step you asked for: calling the backend 
+      // after all answers are saved.
+      const evalResponse = await fetch(`http://localhost:5000/api/generate/${sessionId}/interview/evaluate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId,
-          questionId: currentQuestion.id,
-          answerText: transcript,
-        }),
+        headers: { "Content-Type": "application/json" }
       });
-  
-      const data = await response.json();
-  
-      if (!data.success) {
-        toast.error("Failed to save answer");
-        return;
+
+      if (!evalResponse.ok) {
+        throw new Error("Evaluation failed at the server level");
       }
-  
-      setAnswers((prev) => [...prev, data.data]);
-      console.log("Saved Answer:", data.data);
-  
-      if (currentQuestionIndex < interviewQuestions.length - 1) {
-        setCurrentQuestionIndex(currentQuestionIndex + 1);
-        setAiText("");
-        setTranscript("");
+
+      toast.success("Interview and Evaluation completed!");
+
+      // D. Final Redirect
+      if (onCompleteInterview) {
+        setTimeout(onCompleteInterview, 1500);
       } else {
-        toast.success("Interview completed!");
-        await submitProctoringReport();
-        if (onCompleteInterview) {
-          setTimeout(onCompleteInterview, 2000);
-        } else {
-          // Fallback: If no prop was passed, manually redirect them to the dashboard
-          setTimeout(() => {
-             window.location.href = "/"; // Change this to your dashboard/results route
-          }, 2000);
-        }
+        setTimeout(() => { window.location.href = `/results/${sessionId}`; }, 1500);
       }
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to save answer");
     }
-  };
+  } catch (err) {
+    console.error("Finalization Error:", err);
+    toast.error("An error occurred while finalizing. Please contact support.");
+    setIsFinalizing(false);
+    setSaving(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-[#F5F7FA]">
