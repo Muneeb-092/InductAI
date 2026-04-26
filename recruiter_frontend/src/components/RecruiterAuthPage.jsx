@@ -21,6 +21,32 @@ export function RecruiterAuthPage() {
     password: "",
   });
 
+  const handleForgotPassword = async () => {
+  // 1. Validation: Ensure they at least typed an email
+  if (!formData.email) {
+    toast.error("Please enter your email address first.");
+    return;
+  }
+
+  try {
+    const res = await fetch("http://localhost:5000/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: formData.email }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      toast.success("If an account exists, reset instructions have been sent!");
+    } else {
+      toast.error(data.message || "Something went wrong.");
+    }
+    } catch (err) {
+      console.error("Forgot Password Error:", err);
+      toast.error("Could not connect to the server.");
+    }
+  };
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
   };
@@ -136,13 +162,17 @@ export function RecruiterAuthPage() {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              {isLogin && (
-                <a href="#" className="text-sm text-[#0052CC] hover:underline">
-                  Forgot password?
-                </a>
-              )}
-            </div>
+            <Label htmlFor="password">Password</Label>
+            {isLogin && (
+              <button 
+                type="button" // Important: prevents form submission
+                onClick={handleForgotPassword}
+                className="text-sm text-[#0052CC] hover:underline bg-transparent border-none p-0 cursor-pointer"
+              >
+                Forgot password?
+              </button>
+            )}
+          </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input

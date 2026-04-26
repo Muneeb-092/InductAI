@@ -4,8 +4,11 @@ import { CreateJobPage } from "./components/CreateJobPage";
 import { JobListingsPage } from "./components/JobListingsPage";
 import { CandidateReportsPage } from "./components/CandidateReportsPage";
 import { Sidebar } from "./components/Sidebar";
-import { RecruiterAuthPage } from "./components/RecruiterAuthPage"; // The file from the previous step!
+import { RecruiterAuthPage } from "./components/RecruiterAuthPage"; 
+import { RecruiterSettings } from "./components/RecruiterSettings"; 
+import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { Toaster } from "./components/ui/sonner";
+import { toast } from "sonner";
 
 // 1. Protects routes from unauthenticated users
 const ProtectedRoute = ({ children }) => {
@@ -26,6 +29,9 @@ const DashboardLayout = ({ children }) => {
     if (location.pathname === "/create-job") return "Create Job";
     if (location.pathname === "/jobs") return "Job Listings";
     if (location.pathname === "/reports") return "Candidate Reports";
+    if (location.pathname === "/settings") return "Settings";
+    if (location.pathname === "/logout") return "Logout";
+
     return "Dashboard";
   };
 
@@ -35,6 +41,12 @@ const DashboardLayout = ({ children }) => {
     if (page === "Create Job") navigate("/create-job");
     if (page === "Job Listings") navigate("/jobs");
     if (page === "Candidate Reports") navigate("/reports");
+    if (page === "Settings") navigate("/settings");
+    if (page === "Logout") {
+      localStorage.removeItem("recruiterToken");
+      navigate("/login");
+      toast.success("Logged out successfully");
+    }
   };
 
   return (
@@ -55,7 +67,7 @@ export default function App() {
         
         {/* PUBLIC ROUTE: The Login/Signup Page */}
         <Route path="/login" element={<RecruiterAuthPage />} />
-
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         {/* PRIVATE ROUTES: Require JWT Token */}
         <Route path="/" element={
           <ProtectedRoute>
@@ -89,6 +101,13 @@ export default function App() {
           </ProtectedRoute>
         } />
 
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <RecruiterSettings />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
         

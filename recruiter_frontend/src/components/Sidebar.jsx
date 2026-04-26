@@ -14,7 +14,6 @@ export function Sidebar({ activeItem = "Dashboard", onNavigate }) {
     { name: "Create Job", icon: PlusSquare },
     { name: "Job Listings", icon: FileText },
     { name: "Candidate Reports", icon: BarChart3 },
-    { name: "AI Question Bank", icon: Brain },
   ];
 
   const bottomItems = [
@@ -42,7 +41,6 @@ export function Sidebar({ activeItem = "Dashboard", onNavigate }) {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeItem === item.name;
-
           return (
             <button
               key={item.name}
@@ -64,10 +62,11 @@ export function Sidebar({ activeItem = "Dashboard", onNavigate }) {
       <div className="p-4 space-y-1 border-t border-white/20">
         {bottomItems.map((item) => {
           const Icon = item.icon;
-
+          const isActive = activeItem === item.name;
           return (
             <button
               key={item.name}
+              onClick={() => onNavigate && onNavigate(item.name)}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-all duration-200"
             >
               <Icon className="w-5 h-5" />
