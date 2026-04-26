@@ -5,7 +5,7 @@ const MIN_QUESTIONS = 20;
 const MONTHS_VALID = 6;
 
 // Define your constant Core Skills
-const CORE_SKILL_NAMES = ["Communication", "Leadership"];
+const CORE_SKILL_NAMES = ["Communication", "Leadership", "Teamwork", "Logical Thinking"];
 
 // Helper to map years to Enum
 const getExperienceLevel = (years) => {

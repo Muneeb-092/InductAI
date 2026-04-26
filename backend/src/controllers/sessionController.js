@@ -71,3 +71,23 @@ exports.submitMCQAnswers = async (req, res) => {
     });
   }
 };
+
+
+
+// controllers/sessionController.js
+exports.evaluateInterview = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const report = await sessionService.evaluateInterviewAndGenerateReport(sessionId);
+    res.status(200).json({ success: true, data: report });
+  } catch (error) {
+    // THIS LINE IS CRITICAL:
+    console.error("DETAILED ERROR:", error); 
+    
+    res.status(500).json({ 
+      success: false, 
+      message: "Internal Server Error",
+      debug: error.message // Temporarily send this to Postman to see the real issue
+    });
+  }
+};
