@@ -41,7 +41,6 @@ export function CandidateForm() {
     if (!formData.age) newErrors.age = "Age is required";
     if (!formData.qualification.trim()) newErrors.qualification = "Qualification is required";
     if (!formData.experience.trim()) newErrors.experience = "Experience is required";
-    if (!formData.skills.trim()) newErrors.skills = "Skills are required";
     if (!formData.agreedToTerms) newErrors.agreedToTerms = "You must agree to the terms and conditions";
 
     setErrors(newErrors);
@@ -261,39 +260,6 @@ export function CandidateForm() {
           )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="skills">Relevant Skills *</Label>
-          <Textarea
-            id="skills"
-            placeholder="e.g., React, Node.js, TypeScript, MongoDB, AWS..."
-            value={formData.skills}
-            onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
-            className={errors.skills ? "border-red-500" : ""}
-            rows={3}
-          />
-          {errors.skills && (
-            <p className="text-xs text-red-500">{errors.skills}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="resume" className="flex items-center gap-2">
-            <Upload className="w-4 h-4 text-gray-500" />
-            Upload Resume (Optional)
-          </Label>
-          <Input
-            id="resume"
-            type="file"
-            accept=".pdf,.doc,.docx"
-            onChange={handleFileChange}
-            className="cursor-pointer"
-          />
-          {formData.resume && (
-            <p className="text-xs text-green-600">
-              Selected: {formData.resume.name}
-            </p>
-          )}
-        </div>
 
         <div className="pt-4 border-t border-gray-200">
           <div className="flex items-start gap-3 mb-4">

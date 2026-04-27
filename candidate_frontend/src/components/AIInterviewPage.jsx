@@ -45,7 +45,7 @@ export function AIInterviewPage({ onCompleteInterview }) {
   const videoRef = useRef(null);
   const wasLookingAwayRef = useRef(false); // Keeps the app from spamming 30 toasts per second
   const wasFaceMissingRef = useRef(false);
-
+  const shouldListenRef = useRef(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
 
   const [monitoringStatus, setMonitoringStatus] = useState({
@@ -57,51 +57,162 @@ export function AIInterviewPage({ onCompleteInterview }) {
     eyeTracking: true,
   });
 
-  // --- SPEECH RECOGNITION SETUP ---
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const navigate = useNavigate();
+ // --- SPEECH RECOGNITION SETUP ---
+useEffect(() => {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
-      console.error("Speech Recognition not supported");
-      return;
+  if (!SpeechRecognition) {
+    console.error("Speech Recognition not supported");
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = "en-US";
+
+  recognition.onresult = (event) => {
+    let finalTranscript = "";
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const text = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += text;
+      }
     }
+    if (finalTranscript) {
+      setTranscript((prev) => prev + " " + finalTranscript);
+    }
+  };
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
+  recognition.onstart = () => setIsListening(true);
+  
+  // FIX: Auto-restart if we still want to be listening
+  recognition.onend = () => {
+    setIsListening(false);
+    if (shouldListenRef.current && window.recognition) {
+      try {
+        window.recognition.start();
+      } catch (e) {
+        console.error("Speech recognition restart error", e);
+      }
+    }
+  };
 
-    recognition.onresult = (event) => {
-      let finalTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const text = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += text;
-        }
+  window.recognition = recognition;
+}, []);
+
+useEffect(() => {
+  // Pre-load voices to prevent the voice from changing mid-interview
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = () => {
+    window.speechSynthesis.getVoices();
+  };
+}, []);
+
+// --- SIMULATE AI ASKING QUESTION (SYNCED FIX) ---
+  useEffect(() => {
+    if (interviewQuestions.length === 0) return;
+
+    let typingInterval;
+
+    const askQuestion = () => {
+      setIsAISpeaking(true);
+      setAiText(""); // Clear previous question text
+
+      const questionObj = interviewQuestions[currentQuestionIndex];
+      const question = questionObj?.text;
+      if (!question) return;
+
+      // 1. Force candidate mic OFF so it doesn't transcribe the AI's voice
+      shouldListenRef.current = false;
+      if (window.recognition) {
+        window.recognition.stop();
       }
-      if (finalTranscript) {
-        setTranscript((prev) => prev + " " + finalTranscript);
-      }
+
+      const voices = window.speechSynthesis.getVoices();
+      const utterance = new SpeechSynthesisUtterance(question);
+      
+      // Grab a consistent voice
+      const preferredVoice = voices[9];
+        // voices.find(v => v.name.includes("Google US English")) || 
+        // voices.find(v => v.lang === "en-US") || 
+        // voices[0];
+        
+      if (preferredVoice) utterance.voice = preferredVoice;
+      utterance.rate = 0.95;
+      utterance.pitch = 1;
+
+      // Prevent Chrome's aggressive garbage collection from deleting the audio mid-sentence
+      window.speechUtterance = utterance; 
+
+      // 2. ONLY start the typewriter effect WHEN the audio actually begins playing
+      utterance.onstart = () => {
+        let charIndex = 0;
+        // 45ms matches the rough speed of the TTS voice
+        typingInterval = setInterval(() => {
+          if (charIndex <= question.length) {
+            setAiText(question.slice(0, charIndex));
+            charIndex++;
+          } else {
+            clearInterval(typingInterval);
+          }
+        }, 45); 
+      };
+
+      // 3. ONLY start listening to the candidate WHEN the audio finishes
+      utterance.onend = () => {
+        clearInterval(typingInterval);
+        setAiText(question); // Ensure full text is rendered in case interval missed a frame
+        
+        setTimeout(() => {
+          setIsAISpeaking(false);
+          setTranscript(""); // Wipe out any noise caught during transition
+          
+          // Turn candidate mic back on safely
+          shouldListenRef.current = true;
+          if (window.recognition) {
+            try { window.recognition.start(); } catch(e) { console.error("Mic restart error:", e); }
+          }
+        }, 100); // Brief breathing room before recording candidate
+      };
+
+      window.speechSynthesis.cancel(); // Clear any stuck audio
+      window.speechSynthesis.speak(utterance);
     };
 
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
+    const timeout = setTimeout(askQuestion, 1000);
 
-    window.recognition = recognition;
-  }, []);
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(typingInterval);
+      window.speechSynthesis.cancel(); // Stop AI if candidate switches pages
+    };
+  }, [currentQuestionIndex, interviewQuestions]);
 
+
+  //--------------------------------------------------------- old speak function ---------- to use it comment above useEffect ---------------
   // --- TEXT TO SPEECH ---
-  const speak = (text) => {
-    const voices = window.speechSynthesis.getVoices();
-    const utterance = new SpeechSynthesisUtterance(text);
-    // choose a better voice
-    utterance.voice = voices.find(v => v.name.includes("Google")) || voices[2];
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
+// const speak = (text) => {
+//   const voices = window.speechSynthesis.getVoices();
+//   const utterance = new SpeechSynthesisUtterance(text);
+  
+//   // FIX: Look for a specific voice type instead of relying on an index
+//   const preferredVoice = voices[9];
+//     // voices.find(v => v.name.includes("Google US English")) || 
+//     // voices.find(v => v.lang === "en-US") || 
+//     // voices[0]; // Fallback to whatever is available
+    
+//   if (preferredVoice) {
+//     utterance.voice = preferredVoice;
+//   }
+  
+//   utterance.rate = 0.95;
+//   utterance.pitch = 1;
 
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-  };
+//   window.speechSynthesis.cancel();
+//   window.speechSynthesis.speak(utterance);
+// };
 
   // --- PROCTORING HANDLER ---
   // --- PROCTORING HANDLER ---
@@ -253,8 +364,12 @@ export function AIInterviewPage({ onCompleteInterview }) {
             setTranscript("");
 
             // Start recording candidate answer
+            // Start recording candidate answer
             if (window.recognition) {
-              window.recognition.start();
+              shouldListenRef.current = true; // Tell our app we WANT to listen
+              try {
+                window.recognition.start();
+              } catch(e) {}
             }
           }, 2000);
         }
@@ -324,9 +439,10 @@ export function AIInterviewPage({ onCompleteInterview }) {
     }
     
     // 2. Stop Speech Recognition
-    if (window.recognition) {
-      window.recognition.stop();
-    }
+    shouldListenRef.current = false; // Tell our app to stop forcing restarts
+if (window.recognition) {
+  window.recognition.stop();
+}
 
     // 3. Update the UI State
     setMonitoringStatus(prev => ({ ...prev, camera: false, mic: false }));
@@ -334,9 +450,10 @@ export function AIInterviewPage({ onCompleteInterview }) {
   };
   // --- HANDLE NEXT QUESTION (SAVE ANSWER) ---
   const handleNextQuestion = async () => {
-  if (window.recognition) {
-    window.recognition.stop();
-  }
+  shouldListenRef.current = false; // Tell our app to stop forcing restarts
+if (window.recognition) {
+  window.recognition.stop();
+}
 
   const currentQuestion = interviewQuestions[currentQuestionIndex];
   setSaving(true);
@@ -391,13 +508,9 @@ export function AIInterviewPage({ onCompleteInterview }) {
       }
 
       toast.success("Interview and Evaluation completed!");
-
+      
       // D. Final Redirect
-      if (onCompleteInterview) {
-        setTimeout(onCompleteInterview, 1500);
-      } else {
-        setTimeout(() => { window.location.href = `/results/${sessionId}`; }, 1500);
-      }
+      navigate(`/thank-you`);
     }
   } catch (err) {
     console.error("Finalization Error:", err);
@@ -566,14 +679,15 @@ export function AIInterviewPage({ onCompleteInterview }) {
             </Card>
 
             {/* Live Transcript Display */}
-            <div className="mt-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <div className="mt-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200 max-h-48 overflow-y-auto">
               <p className="text-sm font-medium text-purple-700 mb-2 flex items-center gap-2">
                 <Mic className={`w-4 h-4 ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400'}`} /> 
                 Your Answer (live):
               </p>
-              <p className="text-gray-900 min-h-[3rem]">
+              {/* FIX: Swapped to div, added whitespace-pre-wrap, break-words, and relaxed leading */}
+              <div className="text-gray-900 min-h-[3rem] whitespace-pre-wrap break-words leading-relaxed">
                 {transcript || (isListening ? "Listening..." : "Waiting for question to finish...")}
-              </p>
+              </div>
             </div>
 
             {/* Interview Controls */}

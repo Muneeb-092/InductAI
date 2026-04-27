@@ -111,50 +111,123 @@ exports.getTotalJobs = async (req, res) => {
 };
 exports.getTotalJobsCount = async (req, res) => {
   try {
-    const currentRecruiterId = req.recruiter.id;
-    
-    // 1. Total Jobs
+    const recruiterId = req.recruiter.id;
+
+    // ================= BASIC STATS =================
     const totalJobs = await prisma.job.count({
-      where: { 
-        recruiterId: currentRecruiterId,
-        status: {
-          not: "ARCHIVED" 
-        }
-      },
+      where: {
+        recruiterId,
+        status: { not: "ARCHIVED" }
+      }
     });
 
-    // 2. Active Jobs
     const activeJobs = await prisma.job.count({
       where: {
-        recruiterId: currentRecruiterId,
-        status: "ACTIVE", 
-      },
+        recruiterId,
+        status: "ACTIVE"
+      }
     });
 
-    // 3. Reports Generated (All sessions, regardless of if they finished)
     const totalReports = await prisma.assessmentSession.count({
       where: {
-        job: { recruiterId: currentRecruiterId },
+        job: { recruiterId },
         status: "COMPLETED"
       }
     });
 
-    // 4. NEW: Total Interviews (ONLY completed sessions)
-    const totalInterviews = await prisma.assessmentSession.count({
+    const totalInterviews = totalReports;
+
+    // ================= 📊 MONTHLY INTERVIEWS (LAST 6 MONTHS) =================
+    const now = new Date();
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(now.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+
+    const monthlyDataRaw = await prisma.assessmentSession.findMany({
       where: {
-        status: "COMPLETED", // Filtering by the completed status!
-        job: { recruiterId: currentRecruiterId }
+        status: "COMPLETED",
+        job: { recruiterId },
+        completedAt: {
+          gte: sixMonthsAgo
+        }
+      },
+      select: {
+        completedAt: true
       }
     });
-    
-    // Send all four numbers back!
-    res.status(200).json({ 
-      total: totalJobs, 
+
+    // Group by month
+    const monthlyMap = {};
+
+    monthlyDataRaw.forEach(s => {
+      const date = new Date(s.completedAt);
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+
+      if (!monthlyMap[key]) {
+        monthlyMap[key] = 0;
+      }
+      monthlyMap[key]++;
+    });
+
+    const monthlyInterviews = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(now.getMonth() - i);
+
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+
+      monthlyInterviews.push({
+        month: d.toLocaleString("en-US", { month: "short" }),
+        interviewed: monthlyMap[key] || 0
+      });
+    }
+
+    // ================= 📊 JOB-WISE INTERVIEWS (CURRENT MONTH) =================
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const jobWiseRaw = await prisma.assessmentSession.findMany({
+      where: {
+        status: "COMPLETED",
+        completedAt: {
+          gte: startOfMonth
+        },
+        job: { recruiterId }
+      },
+      include: {
+        job: true
+      }
+    });
+
+    const jobMap = {};
+
+    jobWiseRaw.forEach(s => {
+      const jobTitle = s.job?.title || "Unknown";
+
+      if (!jobMap[jobTitle]) {
+        jobMap[jobTitle] = 0;
+      }
+
+      jobMap[jobTitle]++;
+    });
+
+    const jobWiseInterviews = Object.keys(jobMap).map((job, index) => ({
+      role: job,
+      value: jobMap[job],
+    }));
+
+    // ================= RESPONSE =================
+    res.status(200).json({
+      total: totalJobs,
       active: activeJobs,
       reports: totalReports,
-      interviews: totalInterviews // Added the final metric
+      interviews: totalInterviews,
+
+      // 🔥 NEW DATA FOR CHARTS
+      monthlyInterviews,
+      jobWiseInterviews
     });
-    
+
   } catch (error) {
     console.error("Error fetching dashboard stats:", error);
     res.status(500).json({ message: "Failed to fetch dashboard stats" });

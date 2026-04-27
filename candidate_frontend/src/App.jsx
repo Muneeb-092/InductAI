@@ -5,6 +5,7 @@ import { MCQTestPage } from "./components/MCQTestPage";
 import { AIInterviewInstructionsPage } from "./components/AIInterviewInstructionsPage";
 import { AIInterviewPage } from "./components/AIInterviewPage";
 import { Toaster } from "./components/ui/sonner";
+import ThankYouPage from './components/ThankYouPage';
 
 export default function App() {
   return (
@@ -26,6 +27,8 @@ export default function App() {
 
         {/* 5. The Video Interview */}
         <Route path="/interview/:sessionId" element={<AIInterviewPage />} />
+
+        <Route path="/thank-you" element={<ThankYouPage />} />
 
         {/* 6. Success/Completion Page (Optional but recommended!) */}
         <Route path="/success" element={

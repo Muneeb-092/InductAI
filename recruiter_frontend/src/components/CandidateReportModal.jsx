@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShieldAlert, CheckCircle, Smartphone, Users, EyeOff, BrainCircuit, FileQuestion, MessageSquare, Award, Sparkles } from 'lucide-react';
+import { X, ShieldAlert, MessageSquare, Award, BrainCircuit, FileQuestion, Sparkles } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from 'recharts';
 
 export function CandidateReportModal({ isOpen, onClose, sessionId, candidateName, onScoreCalculated }) {
@@ -31,7 +31,6 @@ export function CandidateReportModal({ isOpen, onClose, sessionId, candidateName
 
   if (!isOpen) return null;
 
-  // Chart Data
   const interviewChartData = report ? [
     { skill: 'Technical', score: report?.breakdown?.interview?.metrics?.technical || 0 },
     { skill: 'Communication', score: report?.breakdown?.interview?.metrics?.communication || 0 },
@@ -40,7 +39,6 @@ export function CandidateReportModal({ isOpen, onClose, sessionId, candidateName
     { skill: 'Logical', score: report?.breakdown?.interview?.metrics?.logicalThinking || 0 },
   ] : [];
 
-  // Data rounded securely for the UI
   const aiScore = report ? Math.round(report.overallScore) : 0;
   const trustScore = report ? Math.round(report.trustScore) : 0;
   const finalCombinedScore = report ? Math.round((aiScore + trustScore) / 2) : 0;
@@ -55,61 +53,50 @@ export function CandidateReportModal({ isOpen, onClose, sessionId, candidateName
     : Math.round((report?.breakdown?.mcq?.accuracy / 100) * mcqTotal);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4">
-      
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+    <div style={styles.overlay}>
+      <div style={styles.modal}>
 
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b bg-gray-50">
+        <div style={styles.header}>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{candidateName}'s AI Report</h2>
-            <p className="text-sm text-gray-500">Session ID: {sessionId}</p>
+            <h2 style={styles.title}>{candidateName}'s AI Report</h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-            <X size={24} />
+          <button onClick={onClose} style={styles.closeBtn}>
+            <X size={22} />
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1">
+        <div style={styles.body}>
           {loading ? (
-            <div className="flex flex-col items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0052CC]"></div>
-              <p className="mt-4 text-gray-500 font-medium">Analyzing AI evaluations...</p>
+            <div style={styles.loaderWrap}>
+              <div style={styles.loader}></div>
+              <p>Analyzing AI evaluations...</p>
             </div>
           ) : report ? (
-            <div className="space-y-6">
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 
               {/* Scores */}
-              <div className="grid grid-cols-3 gap-6">
-                <div className="bg-gradient-to-br from-[#0052CC] to-[#00B8D9] p-6 rounded-xl text-white flex justify-between shadow-sm">
+              <div style={styles.scoreGrid}>
+                <div style={styles.mainScore}>
                   <div>
-                    <h3 className="font-semibold flex items-center gap-2">
-                      <Award size={18}/> Final Score
-                    </h3>
-                    <p className="text-sm text-blue-100">AI + Trust</p>
+                    <h3 style={styles.scoreTitle}><Award size={16}/> Final Score</h3>
+                    <p style={styles.scoreSub}>AI + Trust</p>
                   </div>
-                  <div className="text-4xl font-bold">{finalCombinedScore}%</div>
+                  <div style={styles.bigScore}>{finalCombinedScore}%</div>
                 </div>
 
-                <div className="bg-blue-50 p-6 rounded-xl flex justify-between border border-blue-100">
-                  <div>
-                    <h3 className="font-semibold text-blue-900">AI Score</h3>
-                    <p className="text-sm text-blue-700">Test + Interview</p>
-                  </div>
-                  <div className="text-3xl font-bold text-[#0052CC]">{aiScore}%</div>
+                <div style={styles.card}>
+                  <p>AI Score</p>
+                  <strong>{aiScore}%</strong>
                 </div>
 
-                <div className="bg-green-50 p-6 rounded-xl flex justify-between border border-green-100">
-                  <div>
-                    <h3 className="font-semibold text-green-900">Trust Score</h3>
-                    <p className="text-sm text-green-700">Proctoring AI</p>
-                  </div>
-                  <div className="text-3xl font-bold text-green-600">{trustScore}%</div>
+                <div style={styles.card}>
+                  <p>Trust Score</p>
+                  <strong>{trustScore}%</strong>
                 </div>
               </div>
 
-              
- {/* Bottom Assessment Breakdown */}
+              {/* Bottom Assessment Breakdown */}
               <div className="border rounded-xl p-5 shadow-sm">
                 <h3 className="font-semibold mb-4 text-gray-800">Assessment Breakdown</h3>
 
@@ -142,7 +129,7 @@ export function CandidateReportModal({ isOpen, onClose, sessionId, candidateName
                 </div>
               </div>
               {/* Proctoring + Chart */}
-              <div className="grid grid-cols-3 gap-6">
+              <div style={styles.gridWide}>
 
                 {/* Proctoring */}
                 <div className="border rounded-xl p-5 shadow-sm">
@@ -170,34 +157,33 @@ export function CandidateReportModal({ isOpen, onClose, sessionId, candidateName
                   </div>
                 </div>
 
-                {/* Chart */}
-                <div className="col-span-2 border rounded-xl p-5 shadow-sm">
-                  <h3 className="font-semibold mb-4 flex items-center gap-2 text-gray-800">
-                    <BrainCircuit size={18} className="text-[#0052CC]"/> Interview Skills
-                  </h3>
+                {/* ✅ FIXED FULL WIDTH CHART */}
+                <div style={styles.chartBox}>
+                  <h3 style={styles.boxTitle}><BrainCircuit size={16}/> Interview Skills</h3>
 
-                  <div className="h-64">
+                  <div style={{ width: "100%", height: "280px" }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={interviewChartData}
                         layout="vertical"
-                        margin={{ top: 10, right: 40, left: 60, bottom: 10 }}
+                        margin={{ top: 10, right: 10, left: 40, bottom: 10 }} // ✅ FIXED
                       >
                         <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                         <XAxis type="number" domain={[0, 100]} />
-                        <YAxis dataKey="skill" type="category" fontWeight={500} />
-                        <Tooltip cursor={{fill: '#f3f4f6'}} />
-                        <Bar dataKey="score" fill="#0052CC" barSize={22} radius={[0, 6, 6, 0]}>
-                          <LabelList dataKey="score" position="right" formatter={(val) => `${val}%`} />
+                        <YAxis dataKey="skill" type="category" width={120} />
+                        <Tooltip />
+                        <Bar dataKey="score" fill="#2563eb" barSize={26} radius={[0, 6, 6, 0]}>
+                          <LabelList dataKey="score" position="right" formatter={(v) => `${v}%`} />
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
+
               </div>
 
-             
               
+
               {/* ✅ NEW: AI Insights & Recommendation */}
               <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5 shadow-sm">
                 <h3 className="font-semibold mb-4 flex items-center gap-2 text-indigo-900">
@@ -219,19 +205,196 @@ export function CandidateReportModal({ isOpen, onClose, sessionId, candidateName
                 </div>
               </div>
               
+            {/* ✅ FIXED TRANSCRIPT (NO DOCKING FEEL) */}
+              <div className="bg-white border rounded-xl p-5">
+                <h3 className="font-semibold mb-4 flex items-center gap-2">
+                  <MessageSquare size={18}/> Interview Transcript
+                </h3>
+
+                <div className="space-y-5">
+                  {report.breakdown.interview.transcript?.map((item, i) => (
+                    <div key={i} className="border-b pb-4 last:border-0">
+
+                      <p className="text-xs text-gray-500 font-semibold">
+                        Question {item.questionNumber}
+                      </p>
+
+                      <p className="text-sm font-medium text-gray-900 mt-1">
+                        {item.question}
+                      </p>
+
+                      <div className="mt-2 bg-gray-50 p-3 rounded-lg border">
+                        <p className="text-sm text-gray-700">{item.answer}</p>
+
+                        <div className="mt-2 text-right">
+                          <span className="text-xs font-semibold px-2 py-1 rounded bg-blue-100 text-blue-700">
+                            AI Score: {item.aiScore}%
+                          </span>
+                        </div>
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
-            <div className="text-center text-gray-500 py-12">Failed to load data</div>
+            <div>Failed to load data</div>
           )}
         </div>
 
+
+          
         {/* Footer */}
-        <div className="p-4 border-t bg-gray-50 flex justify-end">
-          <button onClick={onClose} className="px-6 py-2 bg-white border shadow-sm hover:bg-gray-50 font-medium rounded-lg transition-colors">
-            Close Report
-          </button>
+        <div style={styles.footer}>
+          <button onClick={onClose} style={styles.footerBtn}>Close</button>
         </div>
       </div>
     </div>
   );
 }
+
+const styles = {
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.5)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: "20px",
+    zIndex: 50
+  },
+
+  modal: {
+    background: "#fff",
+    width: "100%",
+    maxWidth: "1100px",
+    borderRadius: "16px",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
+    maxHeight: "90vh"
+  },
+
+  header: {
+    padding: "20px",
+    borderBottom: "1px solid #eee",
+    display: "flex",
+    justifyContent: "space-between"
+  },
+
+  title: { fontSize: "20px", fontWeight: 600 },
+  sub: { fontSize: "12px", color: "#777" },
+
+  closeBtn: {
+    background: "none",
+    border: "none",
+    cursor: "pointer"
+  },
+
+  body: {
+    padding: "20px",
+    overflowY: "auto"
+  },
+
+  loaderWrap: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "60px"
+  },
+
+  loader: {
+    width: "40px",
+    height: "40px",
+    border: "3px solid #ddd",
+    borderTop: "3px solid #2563eb",
+    borderRadius: "50%",
+    animation: "spin 1s linear infinite"
+  },
+
+  scoreGrid: {
+    display: "grid",
+    gridTemplateColumns: "2fr 1fr 1fr",
+    gap: "16px"
+  },
+
+  mainScore: {
+    background: "linear-gradient(135deg,#2563eb,#06b6d4)",
+    color: "#fff",
+    padding: "20px",
+    borderRadius: "12px",
+    display: "flex",
+    justifyContent: "space-between"
+  },
+
+  scoreTitle: {
+    display: "flex",
+    gap: "6px",
+    alignItems: "center"
+  },
+
+  scoreSub: { fontSize: "12px", opacity: 0.8 },
+
+  bigScore: { fontSize: "36px", fontWeight: 700 },
+
+  card: {
+    padding: "16px",
+    border: "1px solid #eee",
+    borderRadius: "12px"
+  },
+
+  gridWide: {
+    display: "grid",
+    gridTemplateColumns: "1fr 2.5fr", // ✅ more width to chart
+    gap: "20px"
+  },
+
+  box: {
+    border: "1px solid #eee",
+    padding: "16px",
+    borderRadius: "12px"
+  },
+
+  chartBox: {
+    border: "1px solid #eee",
+    padding: "16px",
+    borderRadius: "12px",
+    width: "100%"
+  },
+
+  boxTitle: {
+    fontWeight: 600,
+    marginBottom: "12px",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px"
+  },
+
+  row: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: "10px"
+  },
+
+  insightBox: {
+    border: "1px solid #eee",
+    padding: "16px",
+    borderRadius: "12px",
+    background: "#fafafa"
+  },
+
+  footer: {
+    padding: "12px",
+    borderTop: "1px solid #eee",
+    textAlign: "right"
+  },
+
+  footerBtn: {
+    padding: "8px 16px",
+    border: "1px solid #ddd",
+    borderRadius: "8px",
+    cursor: "pointer"
+  }
+};
