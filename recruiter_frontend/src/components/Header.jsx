@@ -41,25 +41,7 @@ export function Header() {
 
       {/* Right Section */}
       <div className="flex items-center gap-4">
-        {/* Search Bar */}
-        <div className="relative w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search candidates, jobs..."
-            className="pl-10 bg-gray-50 border-gray-200"
-          />
-        </div>
-
-        {/* Notifications */}
-        <div className="relative">
-          <button className="w-10 h-10 rounded-lg bg-gray-50 hover:bg-gray-100 flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#0052CC]/20">
-            <Bell className="w-5 h-5 text-gray-600" />
-          </button>
-          <Badge className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-r from-[#0052CC] to-[#00B8D9] text-white flex items-center justify-center p-0 text-xs">
-            3
-          </Badge>
-        </div>
+       
 
         {/* Profile */}
         <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
